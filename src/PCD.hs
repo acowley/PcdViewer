@@ -30,11 +30,13 @@ readAsciiPoints pcd h p = aux <$> TL.hGetContents h
                         go i t
                           | i == n = return v
                           | otherwise = case ATL.parse p t of
-                                          ATL.Done t' v -> write i v >> go (i+1) t'
+                                          ATL.Done t' pt -> write i pt >> 
+                                                            go (i+1) t'
                                           ATL.Fail _ _ msg -> error msg
                     go 0 t0                                                 
 
--- Read point data given an ascii and a binary parser for the point data type.
+-- Read point data given an ascii and a binary parser for the point
+-- data type.
 readPointData :: Storable a => 
                  Header -> Handle -> (ATL.Parser a, AB.Parser a) -> 
                  IO (Either String (Vector a))
@@ -45,11 +47,12 @@ readPointData hd h (pa,pb)
         aux (AB.Partial _) = Left "Partial"
         aux (AB.Fail _ _ msg) = Left msg
 
-readXYZ_ascii :: ATL.Parser (V3 Double)
-readXYZ_ascii = (\[x,y,z] -> V3 x y z) <$> count 3 (double <* skipSpace)
+readXYZ_ascii :: ATL.Parser (V3 Float)
+readXYZ_ascii = (\[x,y,z] -> V3 x y z) <$> 
+                count 3 ((realToFrac <$> double) <* skipSpace)
 
-readXYZ_bin :: AB.Parser (V3 Double)
-readXYZ_bin = (\[x,y,z] -> V3 x y z) <$> count 3 (realToFrac <$> float)
+readXYZ_bin :: AB.Parser (V3 Float)
+readXYZ_bin = (\[x,y,z] -> V3 x y z) <$> count 3 float
   where float :: AB.Parser Float
         float = unsafeCoerce <$> anyWord32le
 
@@ -61,4 +64,5 @@ test = do h <- openFile testFile ReadMode
           hClose h
           print pcdh
 
+main :: IO ()
 main = test
