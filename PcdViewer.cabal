@@ -13,11 +13,14 @@ maintainer:          acowley@gmail.com
 category:            Robotics
 build-type:          Simple
 cabal-version:       >=1.8
+data-files:          etc/cloud.vert etc/cloud.frag
 
 executable PcdViewer
-  main-is:        PCD.hs
-  ghc-options:    -O2 -Wall -main-is PCD
-  other-modules:  Header, CommonTypes
+  cpp-options:    -DCABAL                
+  main-is:        Main.hs
+  ghc-options:    -O2 -Wall -fllvm
+  other-modules:  Header, CommonTypes, PCD, Renderer, Paths_PcdViewer
   hs-source-dirs: src
-  build-depends:  base, text, mtl, lens, vector, bytestring, 
-                  attoparsec, attoparsec-binary
+  build-depends:  base, text, mtl, lens, vector, bytestring, attoparsec,
+                  attoparsec-binary, OpenGL, transformers, GLFW-b, GLUtil,
+                  filepath

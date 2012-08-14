@@ -1,4 +1,4 @@
-module PCD (main) where
+module PCD where
 import Control.Applicative
 import Control.Lens
 import qualified Data.Attoparsec.ByteString as AB
@@ -18,12 +18,13 @@ import CommonTypes
 import Header
 
 testFile :: FilePath
-testFile = "etc/LAB.pcd"
+testFile = "/Users/acowley/Documents/Projects/PcdViewer/etc/LAB.pcd"
+--testFile = "etc/LAB.pcd"
 
 readAsciiPoints :: Storable a => Header -> Handle -> ATL.Parser a -> 
                    IO (Vector a)
 readAsciiPoints pcd h p = aux <$> TL.hGetContents h
-  where n = fromIntegral $ pcd^.points
+  where n = min 100000 $ fromIntegral $ pcd^.points
         aux t0 = V.create $
                  do v <- VM.new n
                     let write = VM.write v
@@ -56,13 +57,13 @@ readXYZ_bin = (\[x,y,z] -> V3 x y z) <$> count 3 float
   where float :: AB.Parser Float
         float = unsafeCoerce <$> anyWord32le
 
-test :: IO ()
-test = do h <- openFile testFile ReadMode
-          pcdh <- readHeader h
-          r <- readPointData (fst pcdh) h (readXYZ_ascii, readXYZ_bin)
-          either putStrLn (print . V.length) r
-          hClose h
-          print pcdh
-
-main :: IO ()
-main = test
+loadTest :: IO (Vector (V3 Float))
+loadTest = do h <- openFile testFile ReadMode
+              pcdh <- readHeader h
+              r <- readPointData (fst pcdh) h (readXYZ_ascii, readXYZ_bin)
+              either putStrLn (print . V.length) r
+              hClose h
+              print pcdh
+              case r of 
+                Right v -> return  v
+                Left _ -> return V.empty
