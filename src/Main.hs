@@ -31,17 +31,12 @@ buildMat near far = [ [1, 0, 0, 0]
                     , [0, 0, -1, 0] ]
 
 setup :: IO (IO ())
-setup = do clearColor $= Color4 1 0 0 0
+setup = do clearColor $= Color4 (115/255) (124/255) (161/255) 0
            depthFunc $= Just Always
-           pointSize $= 3.0
+           -- pointSize $= 3.0
            s <- initShader
            v <- loadTest
            let m = uniformMat (camMat s)
-               idmat :: [[GLfloat]]
-               idmat = [ [1,0,0,0]
-                       , [0,1,0,0]
-                       , [0,0,1,0]
-                       , [0,0,0,1] ]
                proj = buildMat 0.01 100.0
            prepPoints v (vertexPos s) >>= return . ((m $= proj) >>)
 
