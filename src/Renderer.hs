@@ -6,9 +6,11 @@ import Graphics.UI.GLFW
 import System.IO.Unsafe
 import Control.Monad.IO.Class
 
+import LinAlg.V2
+
 data UIEvents = UIEvents { keys         :: [(Key,Bool)]
                          , mouseButtons :: [(MouseButton,Bool)]
-                         , mousePos     :: (Int,Int) }
+                         , mousePos     :: V2 Int }
 
 -- We provide callback functions to GLFW that buffer keyboard and
 -- mouse button presses that the client of 'loop' eventually receives.
@@ -27,16 +29,21 @@ bufferKey k p = modifyMVar_ keyBuffer (return . ((k,p):))
 bufferMB :: MouseButton -> Bool -> IO ()
 bufferMB m p = modifyMVar_ mbBuffer (return . ((m,p):))
 
-loop :: MonadIO m => (s -> UIEvents -> m s) -> (s -> m ()) -> s -> m s
+loop :: MonadIO m => (a -> Double -> UIEvents -> m b) -> (a -> m ()) -> a -> m b
 loop eventHandler draw = go 
-  where go s = do ui <- liftIO $ pollEvents >>
+  where go s = do draw s
+                  liftIO swapBuffers
+                  ui <- liftIO $ pollEvents >>
                                  UIEvents <$> swapMVar keyBuffer []
                                           <*> swapMVar mbBuffer []
-                                          <*> getMousePosition
-                  s' <- eventHandler s ui
-                  draw s'
-                  liftIO swapBuffers
-                  return s'
+                                          <*> (uncurry V2 <$> getMousePosition)
+                  dt <- liftIO $ do t' <- getTime
+                                    dt <- (t' -) <$> takeMVar lastTime
+                                    putMVar lastTime t'
+                                    return dt
+                  eventHandler s dt ui
+        {-# NOINLINE lastTime #-}
+        lastTime = unsafePerformIO $ getTime >>= newMVar
 
 setup :: IO ()
 setup = do _ <- initialize

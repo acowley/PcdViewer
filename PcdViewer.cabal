@@ -9,7 +9,7 @@ license:             BSD3
 license-file:        LICENSE
 author:              Anthony Cowley
 maintainer:          acowley@gmail.com
--- copyright:           
+copyright:           (c) Anthony Cowley 2012
 category:            Robotics
 build-type:          Simple
 cabal-version:       >=1.8
@@ -23,4 +23,4 @@ executable PcdViewer
   hs-source-dirs: src
   build-depends:  base, text, mtl, lens, vector, bytestring, attoparsec,
                   attoparsec-binary, OpenGL, transformers, GLFW-b, GLUtil,
-                  filepath
+                  filepath, distributive
