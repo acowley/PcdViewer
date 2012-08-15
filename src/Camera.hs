@@ -44,8 +44,8 @@ mkTransformation = mkTransformationMat . qToM
 toMatrix :: Camera -> M44 Float
 toMatrix (Camera r t _) = mkTransformation (conjugate r) t
 
-toLists :: (F.Foldable t, F.Foldable r) => t (r a) -> [[a]]
-toLists = F.concatMap ((:[]) . F.toList)
+toLists :: (F.Foldable t, Functor t, F.Foldable r) => t (r a) -> [[a]]
+toLists = F.toList . fmap F.toList
 
 mkQ :: a -> V3 a -> Quaternion a
 mkQ a (V3 b c d) = Quaternion a b c d
