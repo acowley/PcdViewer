@@ -8,11 +8,12 @@ module LinAlg.V4
   ) where
 
 import Control.Applicative
-import Control.Lens.Representable
+import Control.Lens
 import Data.Data
 import Data.Foldable
 import Data.Monoid
 import Data.Traversable
+import Data.Distributive
 import LinAlg.Epsilon
 import LinAlg.Metric
 import LinAlg.V2
@@ -52,6 +53,9 @@ instance Fractional a => Fractional (V4 a) where
 
 instance Metric V4 where
   dot (V4 a b c d) (V4 e f g h) = a * e + b * f + c * g + d * h
+
+instance Distributive V4 where
+  distribute f = V4 (fmap (^.x) f) (fmap (^.y) f) (fmap (^.z) f) (fmap (^.w) f)
 
 class R3 t => R4 t where
   w :: Functor f => (a -> f a) -> t a -> f (t a)
