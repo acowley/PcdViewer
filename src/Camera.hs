@@ -42,8 +42,23 @@ mkTransformationMat (V3 (V3 a b c)
 mkTransformation :: Num a => Quaternion a -> V3 a -> M44 a
 mkTransformation = mkTransformationMat . qToM
 
+m33_to_m44 :: Num a => M33 a -> M44 a
+m33_to_m44 (V3 (V3 a b c)
+               (V3 d e f)
+               (V3 g h i)) = V4 (V4 a b c 0)
+                                (V4 d e f 0)
+                                (V4 g h i 0)
+                                (V4 0 0 0 1)
+
+translationToM :: Num a => V3 a -> M44 a
+translationToM (V3 x y z) = V4 (V4 1 0 0 x)
+                               (V4 0 1 0 y)
+                               (V4 0 0 1 z)
+                               (V4 0 0 0 1)
+
 toMatrix :: Camera -> M44 Float
-toMatrix (Camera r t _) = mkTransformation (conjugate r) (negate t)
+--toMatrix (Camera r t _) = mkTransformation (conjugate r) (negate t)
+toMatrix (Camera r t _) = m33_to_m44 (qToM r) !*! translationToM (negate t)
 
 toLists :: (F.Foldable t, Functor t, F.Foldable r) => t (r a) -> [[a]]
 toLists = F.toList . fmap F.toList
@@ -65,7 +80,7 @@ tilt delta (Camera r t v) = Camera (axisAngle (rotate r xAxis) delta * r) t v
   where xAxis = V3 1 0 0
 
 moveForward :: Float -> Camera -> Camera
-moveForward delta (Camera r t v) = Camera r t (v + (rotate r zAxis) ^* delta)
+moveForward delta (Camera r t v) = Camera r t (v + (rotate r zAxis ^* delta))
   where zAxis = V3 0 0 1
 
 normalize :: (Floating a, Metric f, Epsilon a) => f a -> f a
@@ -93,7 +108,7 @@ stopAxis :: V3 Float -> Camera -> Camera
 stopAxis axis (Camera r t v) = Camera r t $ v ^-^ dot (rotate r axis) v *^ axis
 
 moveSideways :: Float -> Camera -> Camera
-moveSideways delta (Camera r t v) = Camera r t (v + (rotate r xAxis) ^* delta)
+moveSideways delta (Camera r t v) = Camera r t (v + (rotate r xAxis ^* delta))
   where xAxis = V3 1 0 0
 
 -- Update a camera's position based on its velocity and a time step

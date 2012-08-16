@@ -92,7 +92,7 @@ main = do R.setup
                         if shouldExit
                           then (R.shutdown >> exitSuccess)
                           else go c'
-              startCam = (translation.y .~ -2)
+              startCam = (translation.y .~ 2)
                        . (rotation .~ axisAngle ((z.~1) 0) pi) 
                        $ defaultCamera
           go $ AppState startCam Nothing
