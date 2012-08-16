@@ -21,9 +21,11 @@ data Camera = Camera { _rotation    :: Quaternion Float
             deriving Show
 makeLenses ''Camera
 
+-- |Axes identified in the camera's local coordinate frame expressed
+-- as vectors in the global coordinate frame.
 forward,right,up :: Camera -> V3 Float
-forward = flip rotate (V3 0 0 (-1)) . view rotation
-right = flip rotate (V3 1 0 0) . view rotation
+forward = flip rotate (V3 0 0 (-1)) . conjugate . view rotation
+right = flip rotate (V3 1 0 0) . conjugate . view rotation
 up = flip rotate (V3 0 1 0) . view rotation
 
 defaultCamera :: Camera
@@ -35,25 +37,18 @@ qToM (Quaternion a b c d) = V3
                             (V3 (2*b*c+2*a*d) (a*a-b*b+c*c-d*d) (2*c*d-2*a*b))
                             (V3 (2*b*d-2*a*c) (2*c*d+2*a*b) (a*a-b*b-c*c+d*d))
 
+snoc3 :: V3 a -> a -> V4 a
+snoc3 (V3 a b c) d = V4 a b c d
+
 mkTransformationMat :: Num a => M33 a -> V3 a -> M44 a
-mkTransformationMat (V3 (V3 a b c)
-                        (V3 d e f)
-                        (V3 g h i))
-                    (V3 x y z) = V4 (V4 a b c x)
-                                    (V4 d e f y)
-                                    (V4 g h i z)
-                                    (V4 0 0 0 1)
+mkTransformationMat (V3 row1 row2 row3) (V3 x y z) = 
+  V4 (snoc3 row1 x) (snoc3 row2 y) (snoc3 row3 z) (w.~1$0)
 
 mkTransformation :: Num a => Quaternion a -> V3 a -> M44 a
 mkTransformation = mkTransformationMat . qToM
 
 m33_to_m44 :: Num a => M33 a -> M44 a
-m33_to_m44 (V3 (V3 a b c)
-               (V3 d e f)
-               (V3 g h i)) = V4 (V4 a b c 0)
-                                (V4 d e f 0)
-                                (V4 g h i 0)
-                                (V4 0 0 0 1)
+m33_to_m44 (V3 r1 r2 r3) = V4 (snoc3 r1 0) (snoc3 r2 0) (snoc3 r3 0) (w.~1$0)
 
 translationToM :: Num a => V3 a -> M44 a
 translationToM (V3 x y z) = V4 (V4 1 0 0 x)
@@ -62,7 +57,6 @@ translationToM (V3 x y z) = V4 (V4 1 0 0 x)
                                (V4 0 0 0 1)
 
 toMatrix :: Camera -> M44 Float
---toMatrix (Camera r t _) = mkTransformation (conjugate r) (negate t)
 toMatrix (Camera r t _) = m33_to_m44 (qToM r) !*! translationToM (negate t)
 
 toLists :: (F.Foldable t, Functor t, F.Foldable r) => t (r a) -> [[a]]
@@ -71,30 +65,33 @@ toLists = F.toList . fmap F.toList
 mkQ :: a -> V3 a -> Quaternion a
 mkQ a (V3 b c d) = Quaternion a b c d
 
-axisAngle :: Floating a => V3 a -> a -> Quaternion a
-axisAngle axis theta = mkQ (cos half) $ (sin half) *^ axis
+axisAngle :: (Epsilon a, Floating a) => V3 a -> a -> Quaternion a
+axisAngle axis theta = normalize $ mkQ (cos half) $ (sin half) *^ axis
   where half = theta / 2
 
 pan :: Float -> Camera -> Camera
---pan delta (Camera r t v) = Camera (axisAngle (rotate r yAxis) delta * r) t v
-pan delta (Camera r t v) = Camera (axisAngle yAxis delta * r) t v
-  where yAxis = V3 0 1 0
-
+pan theta c@(Camera r t v) = Camera r' t v
+--  where r' = normalize $ axisAngle (V3 0 (-1) 0) theta * r
+  where r' = normalize $ axisAngle (up c) theta * r
+  
 tilt :: Float -> Camera -> Camera
-tilt delta (Camera r t v) = Camera (axisAngle (rotate r xAxis) delta * r) t v
-  where xAxis = V3 1 0 0
+tilt theta c@(Camera r t v) = Camera r' t v
+  where r' = normalize $ axisAngle (V3 1 0 0) theta * r
+  -- where r' = normalize $ axisAngle (right c) theta * r
+
+roll :: Float -> Camera -> Camera
+roll theta c@(Camera r t v) = Camera r' t v
+  where r' = normalize $ axisAngle (forward c) theta * r
 
 -- |Add a vector to a 'Camera''s current velocity.
 deltaV :: V3 Float -> Camera -> Camera
 deltaV = (velocity +~)
 
-moveForward :: Float -> Camera -> Camera
-moveForward delta (Camera r t v) = Camera r t (v + (rotate r zAxis ^* delta))
-  where zAxis = V3 0 0 1
-
+-- Note that signorm in the Metric module does this, but doesn't check
+-- if the input vector is zero or unit.
 normalize :: (Floating a, Metric f, Epsilon a) => f a -> f a
-normalize v = let l = sqrt $ quadrance v 
-              in if nearZero l then v else fmap (/l) v
+normalize v = let l = quadrance v 
+              in if nearZero l || nearZero (1-l) then v else fmap (/sqrt l) v
 
 clampSpeed :: Float -> Camera -> Camera
 clampSpeed maxSpeed = velocity %~ aux
@@ -106,26 +103,11 @@ clampSpeed maxSpeed = velocity %~ aux
 slow :: Float -> Camera -> Camera
 slow rate = velocity %~ (rate *^)
 
--- Zero out forward/backward velocity.
-stopForward :: Camera -> Camera
-stopForward = stopAxis $ V3 0 0 1
-
-stopSideways :: Camera -> Camera
-stopSideways = stopAxis $ V3 1 0 0
-
+-- Zero out velocity in a particular direction.
 stopAxis :: V3 Float -> Camera -> Camera
 stopAxis axis (Camera r t v) = Camera r t $ v ^-^ dot (rotate r axis) v *^ axis
-
-moveSideways :: Float -> Camera -> Camera
-moveSideways delta (Camera r t v) = Camera r t (v + (rotate r xAxis ^* delta))
-  where xAxis = V3 1 0 0
 
 -- Update a camera's position based on its velocity and a time step
 -- (in seconds).
 update :: Double -> Camera -> Camera
 update dt (Camera r t v) = Camera r (t + v ^* realToFrac dt) v
-
--- Write 'pan' using lens combinators
--- wat delta = rotation %~ \r -> axisAngle (rotate r yAxis) delta * r
--- wat delta = rotation %~ ((*) <$> flip axisAngle delta . flip rotate yAxis <*> id)
---   where yAxis = V3 0 1 0

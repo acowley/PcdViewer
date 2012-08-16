@@ -2,6 +2,8 @@
 module Main where
 import Control.Applicative
 import Control.Lens
+import Data.IORef (readIORef, writeIORef, newIORef)
+import System.IO.Unsafe (unsafePerformIO)
 import Data.List (transpose)
 import qualified Data.Set as S
 import qualified Renderer as R
@@ -21,15 +23,16 @@ data AppState = AppState { cam       :: Camera
                          , prevMouse :: Maybe (V2 Int) }
 
 handler :: AppState -> Double -> R.UIEvents -> (Bool, AppState)
-handler (AppState c prev) dt (R.UIEvents {..}) = (stop, AppState (update dt c') prev')
+handler (AppState c prev) dt (R.UIEvents {..}) = (stop, AppState c' prev')
   where stop = R.KeyEsc `elem` map fst (fst keys)
         c' = auxKey (go (inc*^forward c)) R.KeyUp
            . auxKey (go ((-inc)*^forward c)) R.KeyDown
            . auxKey (go ((-inc)*^right c)) R.KeyLeft
            . auxKey (go (inc*^right c)) R.KeyRight
            . maybe id (pan . (^.x)) dMouse
-           . maybe id (tilt . (^.y)) dMouse
-           $ slow 0.9 c
+           . maybe id (tilt . negate . (^.y)) dMouse
+           . slow 0.9 
+           $ update dt c 
         s = 15.0  -- max speed
         inc = 1.0 -- 0.1
         go = (clampSpeed s .) . deltaV
@@ -69,7 +72,10 @@ setup = do clearColor $= Color4 (115/255) (124/255) (161/255) 0
            -- depthFunc $= Just Always
            -- depthFunc $= Just Greater
            depthFunc $= Just Lequal
-           pointSize $= 3.0
+           -- pointSize $= 3.0
+           pointSizeRange $= (0,20)
+           vertexProgramPointSize $= Enabled
+           pointSmooth $= Enabled
            s <- initShader
            v <- loadTest
            -- putStrLn $ "Lowest point: " ++ show (lowestPoint v)
@@ -82,16 +88,26 @@ setup = do clearColor $= Color4 (115/255) (124/255) (161/255) 0
 draw :: IO ()
 draw = clear [ColorBuffer, DepthBuffer]
 
+onlyEvery n = \m -> do old <- readIORef tmp
+                       if old == n
+                          then m >> writeIORef tmp 0
+                          else writeIORef tmp (old+1)
+  where tmp = unsafePerformIO $ newIORef 0
+        {-# NOINLINE tmp #-}
+
 main :: IO ()
 main = do R.setup
           drawCloud <- setup
           let renderLoop = R.loop (((return .) .) . handler)
                                   (\s -> draw >> drawCloud (cam s))
+              occasionally = onlyEvery 10
               go c = do (shouldExit,c') <- renderLoop c
+                        occasionally $ print (cam c'^.translation) >>
+                                       putStrLn ("Forward = " ++ show (forward (cam c')))
                         if shouldExit
                           then (R.shutdown >> exitSuccess)
                           else go c'
-              startCam = (translation.y .~ 2)
-                       . (rotation .~ axisAngle ((z.~1) 0) pi) 
+              startCam = (translation.y .~ 3)
+                       . roll pi . pan pi
                        $ defaultCamera
           go $ AppState startCam Nothing
