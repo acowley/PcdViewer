@@ -9,6 +9,6 @@ void main() {
   vec4 v = cam * vec4(vertexCoord,1);
   gl_Position = vec4(focal * v.x,
                      focal * v.y,
-                     -v.z,
+                     v.z,
                      -v.w);
 }

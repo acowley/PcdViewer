@@ -1,15 +1,21 @@
-{-# LANGUAGE TemplateHaskell, OverloadedStrings, FlexibleContexts #-}
+{-# LANGUAGE TemplateHaskell, OverloadedStrings, FlexibleContexts, 
+             BangPatterns #-}
 -- Define a data structure for a PCD file header and an associated
 -- parser.
 module Header where
 import Control.Applicative
+import Control.Arrow ((***))
 import Control.Lens
 import Control.Monad.State
+import Data.Foldable (Foldable, foldMap)
+import Data.List (intersperse)
+import Data.Monoid (mconcat, (<>))
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO
 import Data.Attoparsec.Text hiding (I)
 import System.IO (Handle)
+import Control.DeepSeq
 import CommonTypes
 
 data DimType = I | U | F deriving (Eq,Show,Ord)
@@ -27,8 +33,11 @@ data Header = Header { _version :: Text
                      , _format :: DataFormat } deriving Show
 makeLenses ''Header
 
+instance NFData Header where
+  rnf (Header !v !f !s !d !c !w !h !(!t,!r) !p !fmt) = ()
+
 defaultHeader :: Header
-defaultHeader = Header "" [] [] [] [] 0 0 (V3 0 0 0, Q 1 0 0 0) 0 ASCII
+defaultHeader = Header "" [] [] [] [] 0 0 (V3 0 0 0, Quaternion 1 0 0 0) 0 ASCII
 
 readVersion :: Parser Text
 readVersion = "VERSION" .*> space *> takeText
@@ -49,11 +58,12 @@ namedIntegrals n = n .*> space *> sepBy decimal space
 readViewpoint :: Parser (V3 Double, Quaternion Double)
 readViewpoint = "VIEWPOINT" .*> space *> ((,) <$> v <*> q)
   where v = fmap (\[x,y,z] -> V3 x y z) $ count 3 (double <* skipSpace)
-        q = fmap (\[w,i,j,k] -> Q w i j k) $ count 4 (double <* skipSpace)
+        q = fmap (\[w,i,j,k] -> Quaternion w i j k) $ 
+            count 4 (double <* skipSpace)
 
 readFormat :: Parser DataFormat
 readFormat = "DATA" .*> space *> 
-             ("ascii" .*> pure ASCII) <|> ("binary" .*> pure Binary)
+             (("ascii" .*> pure ASCII) <|> ("binary" .*> pure Binary))
 
 nextLine :: Handle -> IO Text
 nextLine h = do t <- hGetLine h 
@@ -82,3 +92,22 @@ readHeader h = flip execStateT (defaultHeader, Nothing) $
                                 case parseOnly parser ln of
                                   Left _ -> return ()
                                   Right v -> _1 . field .= v >> _2.=Nothing
+
+writeHeader :: Header -> Text
+writeHeader h = (<> "\n") . mconcat . intersperse "\n" $
+                [ "VERSION " <> (h^.version)
+                , "FIELDS " <> joinFields (h^.fields)
+                , "SIZE " <> joinFields (map tshow (h^.sizes))
+                , "TYPE " <> joinFields (map tshow (h^.dimTypes))
+                , "COUNT " <> joinFields (map tshow (h^.counts))
+                , "WIDTH " <> tshow (h^.width)
+                , "HEIGHT " <> tshow (h^.height)
+                , "VIEWPOINT " <> (uncurry (<>) . (ftshow***((" "<>).ftshow)) $
+                                   (h^.viewpoint))
+                , "POINTS " <> tshow (h^.points)
+                , "DATA " <> T.toLower (tshow (h^.format)) ]
+  where joinFields = mconcat . intersperse " "
+        tshow :: Show a => a -> Text
+        tshow = T.pack . show
+        ftshow :: (Foldable t, Show a) => t a -> Text
+        ftshow = mconcat . intersperse " " . foldMap ((:[]) . tshow)

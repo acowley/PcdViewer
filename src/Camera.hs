@@ -18,6 +18,7 @@ type M33 a = V3 (V3 a)
 data Camera = Camera { _rotation    :: Quaternion Float
                      , _translation :: V3 Float
                      , _velocity    :: V3 Float }
+            deriving Show
 makeLenses ''Camera
 
 defaultCamera :: Camera
@@ -42,7 +43,7 @@ mkTransformation :: Num a => Quaternion a -> V3 a -> M44 a
 mkTransformation = mkTransformationMat . qToM
 
 toMatrix :: Camera -> M44 Float
-toMatrix (Camera r t _) = mkTransformation (conjugate r) t
+toMatrix (Camera r t _) = mkTransformation (conjugate r) (negate t)
 
 toLists :: (F.Foldable t, Functor t, F.Foldable r) => t (r a) -> [[a]]
 toLists = F.toList . fmap F.toList
@@ -65,7 +66,7 @@ tilt delta (Camera r t v) = Camera (axisAngle (rotate r xAxis) delta * r) t v
 
 moveForward :: Float -> Camera -> Camera
 moveForward delta (Camera r t v) = Camera r t (v + (rotate r zAxis) ^* delta)
-  where zAxis = V3 0 0 (-1)
+  where zAxis = V3 0 0 1
 
 normalize :: (Floating a, Metric f, Epsilon a) => f a -> f a
 normalize v = let l = sqrt $ quadrance v 

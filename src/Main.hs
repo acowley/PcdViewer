@@ -3,12 +3,15 @@ module Main where
 import Control.Applicative
 import Control.Lens
 import Data.List (transpose)
+import qualified Data.Set as S
 import qualified Renderer as R
+import qualified Data.Vector.Storable as V
 import Graphics.Rendering.OpenGL
 import Graphics.GLUtil
 import System.Exit (exitSuccess)
 import Camera
 import LinAlg.V2
+import LinAlg.V3
 import LinAlg.Vector
 import PCD
 import PointsGL
@@ -19,7 +22,7 @@ data AppState = AppState { cam       :: Camera
 
 handler :: AppState -> Double -> R.UIEvents -> (Bool, AppState)
 handler (AppState c prev) dt (R.UIEvents {..}) = (stop, AppState (update dt c') prev')
-  where stop = R.KeyEsc `elem` map fst keys
+  where stop = R.KeyEsc `elem` map fst (fst keys)
         c' = auxKey (go (moveForward inc) stopForward) R.KeyUp
            . auxKey (go (moveForward (-inc)) stopForward) R.KeyDown
            . auxKey (go (moveSideways inc) stopSideways) R.KeyLeft
@@ -27,11 +30,11 @@ handler (AppState c prev) dt (R.UIEvents {..}) = (stop, AppState (update dt c') 
            . maybe id (pan . (^.x)) dMouse
            . maybe id (tilt . (^.y)) dMouse
            $ slow 0.9 c
-        s = 150.0 -- max speed
-        inc = 10.0 -- 0.1
+        s = 15.0  -- max speed
+        inc = 1.0 -- 0.1
         go yes _ True = clampSpeed s . yes
         go _ no False = no
-        auxKey f k = maybe id f $ lookup k keys
+        auxKey f k = if S.member k (snd keys) then f True else id
         dMouse = (\old -> (fromIntegral <$> mousePos ^-^ old) ^* 0.01) <$> prev
         prev' = maybe (const mousePos <$> prev) 
                       (bool (Just mousePos) Nothing)
@@ -65,9 +68,12 @@ matMul x y = map (\row -> map (\col -> sum (zipWith (*) row col)) y') x
 setup :: IO (Camera -> IO ())
 setup = do clearColor $= Color4 (115/255) (124/255) (161/255) 0
            -- depthFunc $= Just Always
-           -- pointSize $= 3.0
+           -- depthFunc $= Just Greater
+           depthFunc $= Just Lequal
+           pointSize $= 3.0
            s <- initShader
            v <- loadTest
+           -- putStrLn $ "Lowest point: " ++ show (lowestPoint v)
            let m = uniformMat (camMat s)
                proj = buildMat 0.01 100.0
            drawPoints <- prepPoints v (vertexPos s)
@@ -86,4 +92,7 @@ main = do R.setup
                         if shouldExit
                           then (R.shutdown >> exitSuccess)
                           else go c'
-          go $ AppState defaultCamera Nothing
+              startCam = (translation.y .~ -2)
+                       . (rotation .~ axisAngle ((z.~1) 0) pi) 
+                       $ defaultCamera
+          go $ AppState startCam Nothing

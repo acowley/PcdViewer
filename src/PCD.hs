@@ -1,17 +1,22 @@
 module PCD where
 import Control.Applicative
+import Control.DeepSeq
 import Control.Lens
+import Control.Monad (when)
 import qualified Data.Attoparsec.ByteString as AB
 import Data.Attoparsec.Text
 import qualified Data.Attoparsec.Text.Lazy as ATL
 import Data.Attoparsec.Binary
 import qualified Data.ByteString as B
+import Data.Monoid ((<>))
 import qualified Data.Text.Lazy.IO as TL
+import qualified Data.Text.IO as T
 import Data.Vector.Storable (Vector)
 import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
-import Foreign.Storable (Storable)
-import System.IO (Handle, openFile, hClose, IOMode(..))
+import Foreign.Storable (Storable, sizeOf)
+import System.IO (Handle, openFile, hClose, 
+                  IOMode(..), withBinaryFile, hPutBuf, hGetBuf, hTell)
 import Unsafe.Coerce
 
 import CommonTypes
@@ -21,10 +26,12 @@ testFile :: FilePath
 testFile = "/Users/acowley/Documents/Projects/PcdViewer/etc/LAB.pcd"
 --testFile = "etc/LAB.pcd"
 
+testFileB = "/Users/acowley/Documents/Projects/PcdViewer/etc/LAB_bin.pcd"
+
 readAsciiPoints :: Storable a => Header -> Handle -> ATL.Parser a -> 
                    IO (Vector a)
 readAsciiPoints pcd h p = aux <$> TL.hGetContents h
-  where n = min 100000 $ fromIntegral $ pcd^.points
+  where n = {- min 100000 $ -}fromIntegral $ pcd^.points
         aux t0 = V.create $
                  do v <- VM.new n
                     let write = VM.write v
@@ -34,16 +41,28 @@ readAsciiPoints pcd h p = aux <$> TL.hGetContents h
                                           ATL.Done t' pt -> write i pt >> 
                                                             go (i+1) t'
                                           ATL.Fail _ _ msg -> error msg
-                    go 0 t0                                                 
+                    go 0 t0
+
+{-
+-- This isn't work for me on OS X
+readBinPoints pcd f offset = unsafeMMapVector f $
+                             Just (offset, fromIntegral $ pcd^.points)
+-}
+readBinPoints pcd h = do vm <- VM.new (fromIntegral $ pcd^.points)
+                         VM.unsafeWith vm (flip (hGetBuf h) numBytes)
+                         V.freeze vm
+  where numBytes = fromIntegral (pcd^.points) * sizeOf (undefined::V3 Float)
 
 -- Read point data given an ascii and a binary parser for the point
 -- data type.
 readPointData :: Storable a => 
-                 Header -> Handle -> (ATL.Parser a, AB.Parser a) -> 
+                 Header -> Handle -> FilePath -> (ATL.Parser a, AB.Parser a) -> 
                  IO (Either String (Vector a))
-readPointData hd h (pa,pb) 
+readPointData hd h f (pa,pb) 
   | hd^.format == ASCII = readAsciiPoints hd h pa >>= return . Right
-  | otherwise = aux . AB.parse (V.fromList <$> count 5 pb) <$> B.hGetContents h
+  | otherwise = Right <$> readBinPoints hd h
+  -- | otherwise = Right <$> (hTell h >>= readBinPoints hd f . fromIntegral)
+  -- | otherwise = aux . AB.parse (V.fromList <$> count 5 pb) <$> B.hGetContents h
   where aux (AB.Done _ v) = Right v
         aux (AB.Partial _) = Left "Partial"
         aux (AB.Fail _ _ msg) = Left msg
@@ -57,10 +76,30 @@ readXYZ_bin = (\[x,y,z] -> V3 x y z) <$> count 3 float
   where float :: AB.Parser Float
         float = unsafeCoerce <$> anyWord32le
 
+lowestPoint :: Vector (V3 Float) -> Float
+lowestPoint = V.minimum . V.map (\(V3 _ y _) -> y)
+
+asciiToBinary :: FilePath -> FilePath -> IO ()
+asciiToBinary i o = do h <- openFile i ReadMode
+                       (pcdh,_) <- readHeader h
+                       pcdh `deepseq` print pcdh
+                       when ((pcdh^.format) /= ASCII)
+                            (error "Input PCD is already binary!")
+                       v <- readAsciiPoints pcdh h readXYZ_ascii
+                       putStrLn $ "Got points: " ++ show (V.length v)
+                       hClose h
+                       let pcdh' = format.~Binary $ pcdh
+                           sz = sizeOf (undefined::V3 Float) * V.length v
+                       print pcdh'
+                       T.writeFile o (writeHeader pcdh')
+                       withBinaryFile o AppendMode $ \h' ->
+                         V.unsafeWith v (flip (hPutBuf h') sz)
+
 loadTest :: IO (Vector (V3 Float))
-loadTest = do h <- openFile testFile ReadMode
-              pcdh <- readHeader h
-              r <- readPointData (fst pcdh) h (readXYZ_ascii, readXYZ_bin)
+loadTest = do h <- openFile testFileB ReadMode
+              (pcdh,_) <- readHeader h
+              r <- pcdh `deepseq` 
+                   readPointData pcdh h testFileB (readXYZ_ascii, readXYZ_bin)
               either putStrLn (print . V.length) r
               hClose h
               print pcdh
