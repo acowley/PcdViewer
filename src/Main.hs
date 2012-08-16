@@ -23,18 +23,17 @@ data AppState = AppState { cam       :: Camera
 handler :: AppState -> Double -> R.UIEvents -> (Bool, AppState)
 handler (AppState c prev) dt (R.UIEvents {..}) = (stop, AppState (update dt c') prev')
   where stop = R.KeyEsc `elem` map fst (fst keys)
-        c' = auxKey (go (moveForward inc) stopForward) R.KeyUp
-           . auxKey (go (moveForward (-inc)) stopForward) R.KeyDown
-           . auxKey (go (moveSideways inc) stopSideways) R.KeyLeft
-           . auxKey (go (moveSideways (-inc)) stopSideways) R.KeyRight
+        c' = auxKey (go (inc*^forward c)) R.KeyUp
+           . auxKey (go ((-inc)*^forward c)) R.KeyDown
+           . auxKey (go ((-inc)*^right c)) R.KeyLeft
+           . auxKey (go (inc*^right c)) R.KeyRight
            . maybe id (pan . (^.x)) dMouse
            . maybe id (tilt . (^.y)) dMouse
            $ slow 0.9 c
         s = 15.0  -- max speed
         inc = 1.0 -- 0.1
-        go yes _ True = clampSpeed s . yes
-        go _ no False = no
-        auxKey f k = if S.member k (snd keys) then f True else id
+        go = (clampSpeed s .) . deltaV
+        auxKey f k = if S.member k (snd keys) then f else id
         dMouse = (\old -> (fromIntegral <$> mousePos ^-^ old) ^* 0.01) <$> prev
         prev' = maybe (const mousePos <$> prev) 
                       (bool (Just mousePos) Nothing)

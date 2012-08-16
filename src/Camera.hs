@@ -21,6 +21,11 @@ data Camera = Camera { _rotation    :: Quaternion Float
             deriving Show
 makeLenses ''Camera
 
+forward,right,up :: Camera -> V3 Float
+forward = flip rotate (V3 0 0 (-1)) . view rotation
+right = flip rotate (V3 1 0 0) . view rotation
+up = flip rotate (V3 0 1 0) . view rotation
+
 defaultCamera :: Camera
 defaultCamera = Camera 1 0 0
 
@@ -78,6 +83,10 @@ pan delta (Camera r t v) = Camera (axisAngle yAxis delta * r) t v
 tilt :: Float -> Camera -> Camera
 tilt delta (Camera r t v) = Camera (axisAngle (rotate r xAxis) delta * r) t v
   where xAxis = V3 1 0 0
+
+-- |Add a vector to a 'Camera''s current velocity.
+deltaV :: V3 Float -> Camera -> Camera
+deltaV = (velocity +~)
 
 moveForward :: Float -> Camera -> Camera
 moveForward delta (Camera r t v) = Camera r t (v + (rotate r zAxis ^* delta))
