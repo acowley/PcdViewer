@@ -2,14 +2,11 @@
 module Main where
 import Control.Applicative
 import Control.Lens
-import Data.IORef (readIORef, writeIORef, newIORef)
-import System.IO.Unsafe (unsafePerformIO)
 import Data.List (transpose)
 import qualified Data.Set as S
 import qualified Renderer as R
 import Graphics.Rendering.OpenGL
 import Graphics.GLUtil
-import System.Exit (exitSuccess)
 import Camera
 import LinAlg.V2
 import LinAlg.Vector
@@ -17,8 +14,8 @@ import PCD
 import PointsGL
 import MyPaths
 import HeatPalette
-import FrameGrabber
-import Text.Printf
+--import FrameGrabber
+--import Text.Printf
 
 data AppState = AppState { cam       :: Camera 
                          , prevMouse :: Maybe (V2 Int) }
@@ -97,28 +94,24 @@ setup = do clearColor $= Color4 (115/255) (124/255) (161/255) 0
 draw :: IO ()
 draw = clear [ColorBuffer, DepthBuffer]
 
-onlyEvery :: Int -> IO () -> IO ()
-onlyEvery n = \m -> do old <- readIORef tmp
-                       if old == n
-                          then m >> writeIORef tmp 0
-                          else writeIORef tmp (old+1)
-  where tmp = unsafePerformIO $ newIORef 0
-        {-# NOINLINE tmp #-}
-
 main :: IO ()
-main = do R.setup
+main = do loop <- R.setup
           drawCloud <- setup
-          let renderLoop = R.loop (((return .) .) . handler)
-                                  (\s -> draw >> drawCloud (cam s))
-              occasionally = onlyEvery 10
+          occasionally <- R.onlyEvery 3
+          rate <- R.rateLimitHz 60
+          (incFrame,getFPS) <- R.fps
+          let renderLoop = loop (((return .) .) . handler)
+                                (\s -> draw >> drawCloud (cam s))
               -- frameFile = printf "/tmp/frames/frame%05d.tga"
               -- saveFrame' = saveFrame 640 480 . frameFile
               go frame c = 
-                do (shouldExit,c') <- renderLoop c
+                do incFrame
+                   (shouldExit,c') <- renderLoop c
                    -- occasionally $ saveFrame' frame
+                   occasionally $ putStr "FPS: " >> getFPS >>= print
                    if shouldExit
-                     then (R.shutdown >> exitSuccess)
-                     else go (frame+1) c'
+                     then R.shutdown
+                     else rate >> go (frame+1) c'
               startCam = (translation.y .~ 3)
                        . roll pi . pan pi
                        $ defaultCamera
