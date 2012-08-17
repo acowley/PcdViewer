@@ -7,17 +7,18 @@ import System.IO.Unsafe (unsafePerformIO)
 import Data.List (transpose)
 import qualified Data.Set as S
 import qualified Renderer as R
-import qualified Data.Vector.Storable as V
 import Graphics.Rendering.OpenGL
 import Graphics.GLUtil
 import System.Exit (exitSuccess)
 import Camera
 import LinAlg.V2
-import LinAlg.V3
 import LinAlg.Vector
 import PCD
 import PointsGL
 import MyPaths
+import HeatPalette
+import FrameGrabber
+import Text.Printf
 
 data AppState = AppState { cam       :: Camera 
                          , prevMouse :: Maybe (V2 Int) }
@@ -47,6 +48,7 @@ bool t _ True = t
 bool _ f False = f
 
 data ShaderArgs = ShaderArgs { camMat    :: UniformLocation
+                             , heatTex   :: UniformLocation
                              , vertexPos :: AttribLocation }
 
 initShader :: IO ShaderArgs
@@ -55,6 +57,7 @@ initShader = do vs <- loadShader =<< getDataFileName "etc/cloud.vert"
                 p <- linkShaderProgram [vs] [fs]
                 currentProgram $= Just p
                 ShaderArgs <$> get (uniformLocation p "cam")
+                           <*> get (uniformLocation p "heat")
                            <*> get (attribLocation p "vertexCoord")
 
 buildMat :: GLfloat -> GLfloat -> [[GLfloat]]
@@ -64,30 +67,37 @@ buildMat near far = [ [1, 0, 0, 0]
                     , [0, 0, -1, 0] ]
 
 matMul :: [[GLfloat]] -> [[GLfloat]] -> [[GLfloat]]
-matMul x y = map (\row -> map (\col -> sum (zipWith (*) row col)) y') x
-  where y' = transpose y
+matMul a b = map (\row -> map (\col -> sum (zipWith (*) row col)) b') a
+  where b' = transpose b
 
 setup :: IO (Camera -> IO ())
 setup = do clearColor $= Color4 (115/255) (124/255) (161/255) 0
-           -- depthFunc $= Just Always
-           -- depthFunc $= Just Greater
            depthFunc $= Just Lequal
            -- pointSize $= 3.0
-           pointSizeRange $= (0,20)
+           -- pointSizeRange $= (0,3)
            vertexProgramPointSize $= Enabled
            pointSmooth $= Enabled
+           textureFunction $= Decal
+           lighting $= Disabled
            s <- initShader
+           activeTexture $= TextureUnit 0
+           uniform (heatTex s) $= Index1 (0::GLuint)
+           t <- heatTexture 1024
            v <- loadTest
-           -- putStrLn $ "Lowest point: " ++ show (lowestPoint v)
            let m = uniformMat (camMat s)
                proj = buildMat 0.01 100.0
+               cmat = map (map realToFrac) . toLists . toMatrix
            drawPoints <- prepPoints v (vertexPos s)
-           return $ \c -> m $= matMul proj (map (map realToFrac) (toLists (toMatrix c))) 
-                          >> drawPoints
+           return $ \c -> do m $= matMul proj (cmat c)
+                             activeTexture $= TextureUnit 0
+                             uniform (heatTex s) $= Index1 (0::GLuint)
+                             textureBinding Texture1D $= Just t
+                             drawPoints
 
 draw :: IO ()
 draw = clear [ColorBuffer, DepthBuffer]
 
+onlyEvery :: Int -> IO () -> IO ()
 onlyEvery n = \m -> do old <- readIORef tmp
                        if old == n
                           then m >> writeIORef tmp 0
@@ -101,13 +111,15 @@ main = do R.setup
           let renderLoop = R.loop (((return .) .) . handler)
                                   (\s -> draw >> drawCloud (cam s))
               occasionally = onlyEvery 10
-              go c = do (shouldExit,c') <- renderLoop c
-                        occasionally $ print (cam c'^.translation) >>
-                                       putStrLn ("Forward = " ++ show (forward (cam c')))
-                        if shouldExit
-                          then (R.shutdown >> exitSuccess)
-                          else go c'
+              -- frameFile = printf "/tmp/frames/frame%05d.tga"
+              -- saveFrame' = saveFrame 640 480 . frameFile
+              go frame c = 
+                do (shouldExit,c') <- renderLoop c
+                   -- occasionally $ saveFrame' frame
+                   if shouldExit
+                     then (R.shutdown >> exitSuccess)
+                     else go (frame+1) c'
               startCam = (translation.y .~ 3)
                        . roll pi . pan pi
                        $ defaultCamera
-          go $ AppState startCam Nothing
+          go (0::Int) $ AppState startCam Nothing

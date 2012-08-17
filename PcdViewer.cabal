@@ -21,6 +21,6 @@ executable PcdViewer
   ghc-options:    -O2 -Wall -fllvm
   other-modules:  Header, CommonTypes, PCD, Renderer, Paths_PcdViewer
   hs-source-dirs: src
-  build-depends:  base, text, mtl, lens, vector, bytestring, attoparsec,
+  build-depends:  base, text, mtl, lens, vector, bytestring, attoparsec, binary,
                   attoparsec-binary, OpenGL, transformers, GLFW-b, GLUtil,
-                  filepath, distributive, deepseq
+                  filepath, distributive, deepseq, JuicyPixels, containers

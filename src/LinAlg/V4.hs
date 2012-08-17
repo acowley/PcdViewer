@@ -12,7 +12,6 @@ import Control.Lens
 import Data.Data
 import Data.Foldable
 import Data.Monoid
-import Data.Traversable
 import Data.Distributive
 import LinAlg.Epsilon
 import LinAlg.Metric
