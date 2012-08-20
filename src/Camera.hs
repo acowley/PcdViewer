@@ -21,6 +21,18 @@ data Camera = Camera { _rotation    :: Quaternion Float
             deriving Show
 makeLenses ''Camera
 
+-- Create a human-readable text output of a camera's rotation and
+-- translation.
+writePose :: Camera -> String
+writePose cam = show (_rotation cam) ++ "\n" ++ show (_translation cam) ++ "\n"
+
+-- Read back a camera pose saved in a format compatible with
+-- 'writePose'.
+readPose :: String -> Maybe Camera
+readPose = aux . lines
+  where aux [r,t] = Just $ Camera (read r) (read t) 0
+        aux _ = Nothing
+
 -- |Axes identified in the camera's local coordinate frame expressed
 -- as vectors in the global coordinate frame.
 forward,right,up :: Camera -> V3 Float

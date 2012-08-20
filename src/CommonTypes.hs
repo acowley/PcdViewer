@@ -1,10 +1,16 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 -- |Common types for dealing with PCD files.
-module CommonTypes (module LinAlg.V3, module LinAlg.Quaternion) where
+module CommonTypes (module LinAlg.V2, module LinAlg.Vector, 
+                    module LinAlg.V3, module LinAlg.Quaternion,
+                    Vector, Word8) where
 import Control.Applicative
+import Data.Vector.Storable (Vector)
+import Data.Word (Word8)
 import Foreign.Ptr (plusPtr, castPtr)
 import Foreign.Storable (Storable(..))
+import LinAlg.V2
 import LinAlg.V3
+import LinAlg.Vector
 import LinAlg.Quaternion
 
 instance forall a. Storable a => Storable (V3 a) where

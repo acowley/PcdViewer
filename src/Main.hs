@@ -1,28 +1,40 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, TemplateHaskell #-}
 module Main where
 import Control.Applicative
 import Control.Lens
+import Data.IORef (newIORef, writeIORef, readIORef)
 import Data.List (transpose)
 import qualified Data.Set as S
+import Data.Vector.Storable (Vector)
 import qualified Renderer as R
 import Graphics.Rendering.OpenGL
 import Graphics.GLUtil
 import Camera
-import LinAlg.V2
-import LinAlg.Vector
+import CommonTypes
 import PCD
 import PointsGL
 import MyPaths
 import HeatPalette
---import FrameGrabber
+import FrameGrabber
 --import Text.Printf
 
-data AppState = AppState { cam       :: Camera 
-                         , prevMouse :: Maybe (V2 Int) }
+import System.FilePath ((</>), replaceExtension)
 
-handler :: AppState -> Double -> R.UIEvents -> (Bool, AppState)
-handler (AppState c prev) dt (R.UIEvents {..}) = (stop, AppState c' prev')
-  where stop = R.KeyEsc `elem` map fst (fst keys)
+data AppState = AppState { _cam          :: Camera 
+                         , _prevMouse    :: Maybe (V2 Int)
+                         , _saveDepthmap :: AppState -> IO () }
+makeLenses ''AppState
+
+keyActions :: AppState -> [(R.Key, Bool)] -> IO AppState
+keyActions s keys 
+  | (R.CharKey 'F', True) `elem` keys = (s^.saveDepthmap) s >> return s
+  | otherwise = return s
+
+cameraControl :: Double -> R.UIEvents -> AppState -> (Bool, AppState)
+cameraControl dt (R.UIEvents{..}) st = (stop, ((cam.~c').(prevMouse.~prev')) $ st)
+  where c = st^.cam 
+        prev = st^.prevMouse
+        stop = R.KeyEsc `elem` map fst (fst keys)
         c' = auxKey (go (inc*^forward c)) R.KeyUp
            . auxKey (go ((-inc)*^forward c)) R.KeyDown
            . auxKey (go ((-inc)*^right c)) R.KeyLeft
@@ -39,6 +51,11 @@ handler (AppState c prev) dt (R.UIEvents {..}) = (stop, AppState c' prev')
         prev' = maybe (const mousePos <$> prev) 
                       (bool (Just mousePos) Nothing)
                       (lookup R.MouseButton0 mouseButtons)
+
+handler :: AppState -> Double -> R.UIEvents -> IO (Bool, AppState)
+handler s dt ui = keyActions s (fst (R.keys ui)) >>= 
+                  return . cameraControl dt ui
+
 
 bool :: a -> a -> Bool -> a
 bool t _ True = t
@@ -67,7 +84,8 @@ matMul :: [[GLfloat]] -> [[GLfloat]] -> [[GLfloat]]
 matMul a b = map (\row -> map (\col -> sum (zipWith (*) row col)) b') a
   where b' = transpose b
 
-setup :: IO (Camera -> IO ())
+-- Configures OpenGL and returns a drawing function.
+setup :: IO (FilePath -> IO (), Camera -> IO ())
 setup = do clearColor $= Color4 (115/255) (124/255) (161/255) 0
            depthFunc $= Just Lequal
            -- pointSize $= 3.0
@@ -79,29 +97,41 @@ setup = do clearColor $= Color4 (115/255) (124/255) (161/255) 0
            s <- initShader
            activeTexture $= TextureUnit 0
            uniform (heatTex s) $= Index1 (0::GLuint)
-           t <- heatTexture 1024
+           (heatVec, t) <- heatTexture 1024
            v <- loadTest
            let m = uniformMat (camMat s)
                proj = buildMat 0.01 100.0
                cmat = map (map realToFrac) . toLists . toMatrix
            drawPoints <- prepPoints v (vertexPos s)
-           return $ \c -> do m $= matMul proj (cmat c)
-                             activeTexture $= TextureUnit 0
-                             uniform (heatTex s) $= Index1 (0::GLuint)
-                             textureBinding Texture1D $= Just t
-                             drawPoints
+           let draw c = do m $= matMul proj (cmat c)
+                           activeTexture $= TextureUnit 0
+                           uniform (heatTex s) $= Index1 (0::GLuint)
+                           textureBinding Texture1D $= Just t
+                           drawPoints
+           return (saveFloatFrame heatVec, draw)
 
 draw :: IO ()
 draw = clear [ColorBuffer, DepthBuffer]
 
+makeFrameSaver :: (FilePath -> IO ()) -> IO (AppState -> IO ())
+makeFrameSaver dump = do cnt <- newIORef 1
+                         let f s = do n <- readIORef cnt
+                                      writeIORef cnt (n+1)
+                                      dump $ baseName++show n++".bin"
+                                      writeFile (baseName++show n++"pose.txt")
+                                                (writePose (_cam s))
+                         return f
+  where baseName = projRoot </> "depthmaps" </> "depths"
+
 main :: IO ()
 main = do loop <- R.setup
-          drawCloud <- setup
+          (dumpDepth, drawCloud) <- setup
+          dumper <- makeFrameSaver dumpDepth
           occasionally <- R.onlyEvery 3
           rate <- R.rateLimitHz 60
           (incFrame,getFPS) <- R.fps
-          let renderLoop = loop (((return .) .) . handler)
-                                (\s -> draw >> drawCloud (cam s))
+          let renderLoop = loop handler
+                                (\s -> draw >> drawCloud (s^.cam))
               -- frameFile = printf "/tmp/frames/frame%05d.tga"
               -- saveFrame' = saveFrame 640 480 . frameFile
               go frame c = 
@@ -115,4 +145,4 @@ main = do loop <- R.setup
               startCam = (translation.y .~ 3)
                        . roll pi . pan pi
                        $ defaultCamera
-          go (0::Int) $ AppState startCam Nothing
+          go (0::Int) $ AppState startCam Nothing dumper

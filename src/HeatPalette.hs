@@ -29,7 +29,7 @@ buildPalette n = V.unfoldrN n aux 0
                     | h < 5 = V3 colX colZero colC
                     | h < 6 = V3 colC colZero colX
 
-heatTexture :: Int -> IO TextureObject
+heatTexture :: Int -> IO (V.Vector (V3 Word8), TextureObject)
 heatTexture n = do [obj] <- genObjectNames 1
                    textureBinding Texture1D $= Just obj
                    textureFilter Texture1D $= ((Nearest, Nothing), Nearest)
@@ -41,6 +41,6 @@ heatTexture n = do [obj] <- genObjectNames 1
                        texImage1D NoProxy 0 RGBA' sz' 0
                        . PixelData RGB UnsignedByte
                        . castPtr)
-                   return obj
+                   return (v, obj)
   where sz = TextureSize2D (fromIntegral n) 1
         sz' = TextureSize1D (fromIntegral n)
