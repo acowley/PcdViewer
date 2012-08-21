@@ -1,31 +1,28 @@
+-- |Parser for PCD (point cloud data) files. Also provides a facility
+-- for converting from ASCII to binary formatted point data.
 module PCD where
 import Control.Applicative
 import Control.DeepSeq
 import Control.Lens
 import Control.Monad (when)
-import qualified Data.Attoparsec.ByteString as AB
+-- import qualified Data.Attoparsec.ByteString as AB
 import Data.Attoparsec.Text
 import qualified Data.Attoparsec.Text.Lazy as ATL
-import Data.Attoparsec.Binary
-import qualified Data.ByteString as B
-import Data.Monoid ((<>))
+-- import Data.Attoparsec.Binary
 import qualified Data.Text.Lazy.IO as TL
 import qualified Data.Text.IO as T
-import Data.Vector.Storable (Vector)
 import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
 import Foreign.Storable (Storable, sizeOf)
 import System.IO (Handle, openFile, hClose, 
-                  IOMode(..), withBinaryFile, hPutBuf, hGetBuf, hTell)
-import Unsafe.Coerce
+                  IOMode(..), withBinaryFile, hPutBuf, hGetBuf)
+-- import Unsafe.Coerce
 
 import CommonTypes
 import Header
 
-testFile :: FilePath
+testFile,testFileB :: FilePath
 testFile = "/Users/acowley/Documents/Projects/PcdViewer/etc/LAB.pcd"
---testFile = "etc/LAB.pcd"
-
 testFileB = "/Users/acowley/Documents/Projects/PcdViewer/etc/LAB_bin.pcd"
 
 readAsciiPoints :: Storable a => Header -> Handle -> ATL.Parser a -> 
@@ -48,33 +45,29 @@ readAsciiPoints pcd h p = aux <$> TL.hGetContents h
 readBinPoints pcd f offset = unsafeMMapVector f $
                              Just (offset, fromIntegral $ pcd^.points)
 -}
+readBinPoints :: Storable a => Header -> Handle -> IO (Vector a)
 readBinPoints pcd h = do vm <- VM.new (fromIntegral $ pcd^.points)
-                         VM.unsafeWith vm (flip (hGetBuf h) numBytes)
+                         _ <- VM.unsafeWith vm (flip (hGetBuf h) numBytes)
                          V.freeze vm
   where numBytes = fromIntegral (pcd^.points) * sizeOf (undefined::V3 Float)
 
 -- Read point data given an ascii and a binary parser for the point
 -- data type.
 readPointData :: Storable a => 
-                 Header -> Handle -> FilePath -> (ATL.Parser a, AB.Parser a) -> 
+                 Header -> Handle -> ATL.Parser a -> 
                  IO (Either String (Vector a))
-readPointData hd h f (pa,pb) 
+readPointData hd h pa 
   | hd^.format == ASCII = readAsciiPoints hd h pa >>= return . Right
   | otherwise = Right <$> readBinPoints hd h
-  -- | otherwise = Right <$> (hTell h >>= readBinPoints hd f . fromIntegral)
-  -- | otherwise = aux . AB.parse (V.fromList <$> count 5 pb) <$> B.hGetContents h
-  where aux (AB.Done _ v) = Right v
-        aux (AB.Partial _) = Left "Partial"
-        aux (AB.Fail _ _ msg) = Left msg
 
 readXYZ_ascii :: ATL.Parser (V3 Float)
 readXYZ_ascii = (\[x,y,z] -> V3 x y z) <$> 
                 count 3 ((realToFrac <$> double) <* skipSpace)
 
-readXYZ_bin :: AB.Parser (V3 Float)
-readXYZ_bin = (\[x,y,z] -> V3 x y z) <$> count 3 float
-  where float :: AB.Parser Float
-        float = unsafeCoerce <$> anyWord32le
+-- readXYZ_bin :: AB.Parser (V3 Float)
+-- readXYZ_bin = (\[x,y,z] -> V3 x y z) <$> count 3 float
+--   where float :: AB.Parser Float
+--         float = unsafeCoerce <$> anyWord32le
 
 lowestPoint :: Vector (V3 Float) -> Float
 lowestPoint = V.minimum . V.map (\(V3 _ y _) -> y)
@@ -99,7 +92,7 @@ loadTest :: IO (Vector (V3 Float))
 loadTest = do h <- openFile testFileB ReadMode
               (pcdh,_) <- readHeader h
               r <- pcdh `deepseq` 
-                   readPointData pcdh h testFileB (readXYZ_ascii, readXYZ_bin)
+                   readPointData pcdh h readXYZ_ascii
               either putStrLn (print . V.length) r
               hClose h
               print pcdh

@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell, OverloadedStrings, FlexibleContexts, 
              BangPatterns #-}
--- Define a data structure for a PCD file header and an associated
+-- |Define a data structure for a PCD file header and an associated
 -- parser.
 module Header where
 import Control.Applicative
@@ -34,7 +34,7 @@ data Header = Header { _version :: Text
 makeLenses ''Header
 
 instance NFData Header where
-  rnf (Header !v !f !s !d !c !w !h !(!t,!r) !p !fmt) = ()
+  rnf (Header !_v !_f !_s !_d !_c !_w !_h !(!_t,!_r) !_p !_fmt) = ()
 
 defaultHeader :: Header
 defaultHeader = Header "" [] [] [] [] 0 0 (V3 0 0 0, Quaternion 1 0 0 0) 0 ASCII

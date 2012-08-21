@@ -1,12 +1,11 @@
 module HeatPalette (heatTexture) where
 import qualified Data.Vector.Storable as V
-import Data.Word (Word8)
 import CommonTypes
 import Foreign.Ptr (castPtr)
 import Graphics.Rendering.OpenGL
 
 fmod :: (Ord a, RealFrac a) => a -> a -> a
-fmod n m | n > m = n - fromIntegral (floor (n / m)) * m
+fmod n m | n > m = n - fromIntegral (floor (n / m) :: Int) * m
          | otherwise = n
 
 buildPalette :: Int -> V.Vector (V3 Word8)
@@ -28,6 +27,7 @@ buildPalette n = V.unfoldrN n aux 0
                     | h < 4 = V3 colZero colX colC
                     | h < 5 = V3 colX colZero colC
                     | h < 6 = V3 colC colZero colX
+                    | otherwise = error "Hue out of range"
 
 heatTexture :: Int -> IO (V.Vector (V3 Word8), TextureObject)
 heatTexture n = do [obj] <- genObjectNames 1
@@ -42,5 +42,5 @@ heatTexture n = do [obj] <- genObjectNames 1
                        . PixelData RGB UnsignedByte
                        . castPtr)
                    return (v, obj)
-  where sz = TextureSize2D (fromIntegral n) 1
+  where -- sz = TextureSize2D (fromIntegral n) 1
         sz' = TextureSize1D (fromIntegral n)

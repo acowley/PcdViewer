@@ -5,25 +5,27 @@ import Control.Lens
 import Data.IORef (newIORef, writeIORef, readIORef)
 import Data.List (transpose)
 import qualified Data.Set as S
-import Data.Vector.Storable (Vector)
 import qualified Renderer as R
 import Graphics.Rendering.OpenGL
 import Graphics.GLUtil
 import Camera
 import CommonTypes
+import qualified LinAlg.V3 as V
 import PCD
 import PointsGL
 import MyPaths
 import HeatPalette
 import FrameGrabber
---import Text.Printf
-
-import System.FilePath ((</>), replaceExtension)
+import System.FilePath ((</>))
 
 data AppState = AppState { _cam          :: Camera 
                          , _prevMouse    :: Maybe (V2 Int)
                          , _saveDepthmap :: AppState -> IO () }
 makeLenses ''AppState
+
+_x,_y :: V.R2 t => SimpleLens (t a) a
+_x = V.x
+_y = V.y
 
 keyActions :: AppState -> [(R.Key, Bool)] -> IO AppState
 keyActions s keys 
@@ -40,8 +42,8 @@ cameraControl dt (R.UIEvents{..}) st = (stop, ((cam.~c').(prevMouse.~prev')) $ s
            . auxKey (go ((-inc)*^forward c)) R.KeyDown
            . auxKey (go ((-inc)*^right c)) R.KeyLeft
            . auxKey (go (inc*^right c)) R.KeyRight
-           . maybe id (pan . (^.x)) dMouse
-           . maybe id (tilt . negate . (^.y)) dMouse
+           . maybe id (pan . (^._x)) dMouse
+           . maybe id (tilt . negate . (^._y)) dMouse
            . slow 0.9 
            $ update dt c 
         s = 15.0  -- max speed
@@ -111,11 +113,11 @@ setup = do clearColor $= Color4 (115/255) (124/255) (161/255) 0
                            drawPoints
            return (saveFloatFrame heatVec, draw)
 
-draw :: IO ()
-draw = clear [ColorBuffer, DepthBuffer]
+preDraw :: IO ()
+preDraw = clear [ColorBuffer, DepthBuffer]
 
 makeFrameSaver :: (FilePath -> IO ()) -> IO (AppState -> IO ())
-makeFrameSaver dump = do cnt <- newIORef 1
+makeFrameSaver dump = do cnt <- newIORef (1::Int)
                          let f s = do n <- readIORef cnt
                                       writeIORef cnt (n+1)
                                       dump $ baseName++show n++".bin"
@@ -132,18 +134,15 @@ main = do loop <- R.setup
           rate <- R.rateLimitHz 60
           (incFrame,getFPS) <- R.fps
           let renderLoop = loop handler
-                                (\s -> draw >> drawCloud (s^.cam))
-              -- frameFile = printf "/tmp/frames/frame%05d.tga"
-              -- saveFrame' = saveFrame 640 480 . frameFile
+                                (\s -> preDraw >> drawCloud (s^.cam))
               go frame c = 
                 do incFrame
                    (shouldExit,c') <- renderLoop c
-                   -- occasionally $ saveFrame' frame
                    occasionally $ putStr "FPS: " >> getFPS >>= print
                    if shouldExit
                      then R.shutdown
                      else rate >> go (frame+1) c'
-              startCam = (translation.y .~ 3)
+              startCam = (translation._y .~ 3)
                        . roll pi . pan pi
                        $ defaultCamera
           go (0::Int) $ AppState startCam Nothing dumper

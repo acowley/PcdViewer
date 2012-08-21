@@ -1,11 +1,9 @@
 module PointsGL where
-import Data.Vector.Storable (Vector)
 import qualified Data.Vector.Storable as V
 import Data.Word (Word32)
 import Foreign.Storable (sizeOf)
 import Graphics.GLUtil
 import Graphics.Rendering.OpenGL
-
 import CommonTypes
 
 prepPoints :: Vector (V3 Float) -> AttribLocation -> IO (IO ())
