@@ -28,6 +28,7 @@ makeLenses ''AppState
 keyActions :: AppState -> [(R.Key, Bool)] -> IO AppState
 keyActions s keys 
   | (R.CharKey 'F', True) `elem` keys = (s^.saveDepthmap) s >> return s
+  | (R.CharKey 'C', True) `elem` keys = print (s^.cam) >> return s
   | otherwise = return s
 
 cameraControl :: Double -> R.UIEvents -> AppState -> (Bool, AppState)
