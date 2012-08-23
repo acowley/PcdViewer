@@ -23,4 +23,5 @@ executable PcdViewer
   hs-source-dirs: src
   build-depends:  base, text, mtl, lens, vector, bytestring, attoparsec, binary,
                   attoparsec-binary, OpenGL, transformers, GLFW-b, GLUtil,
-                  filepath, distributive, deepseq, JuicyPixels, containers
+                  filepath, distributive, deepseq, JuicyPixels, containers, 
+                  linear

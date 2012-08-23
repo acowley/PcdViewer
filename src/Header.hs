@@ -37,7 +37,7 @@ instance NFData Header where
   rnf (Header !_v !_f !_s !_d !_c !_w !_h !(!_t,!_r) !_p !_fmt) = ()
 
 defaultHeader :: Header
-defaultHeader = Header "" [] [] [] [] 0 0 (V3 0 0 0, Quaternion 1 0 0 0) 0 ASCII
+defaultHeader = Header "" [] [] [] [] 0 0 (0, Quaternion 1 0) 0 ASCII
 
 readVersion :: Parser Text
 readVersion = "VERSION" .*> space *> takeText
@@ -58,7 +58,7 @@ namedIntegrals n = n .*> space *> sepBy decimal space
 readViewpoint :: Parser (V3 Double, Quaternion Double)
 readViewpoint = "VIEWPOINT" .*> space *> ((,) <$> v <*> q)
   where v = fmap (\[x,y,z] -> V3 x y z) $ count 3 (double <* skipSpace)
-        q = fmap (\[w,i,j,k] -> Quaternion w i j k) $ 
+        q = fmap (\[w,i,j,k] -> Quaternion w (V3 i j k)) $ 
             count 4 (double <* skipSpace)
 
 readFormat :: Parser DataFormat

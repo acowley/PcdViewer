@@ -11,7 +11,7 @@ import Graphics.UI.GLFW
 
 import qualified Data.Set as S
 
-import LinAlg.V2
+import Linear.V2
 
 data UIEvents = UIEvents { keys         :: ([(Key,Bool)], S.Set Key)
                          , mouseButtons :: [(MouseButton,Bool)]

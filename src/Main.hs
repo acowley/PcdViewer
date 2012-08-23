@@ -10,7 +10,7 @@ import Graphics.Rendering.OpenGL
 import Graphics.GLUtil
 import Camera
 import CommonTypes
-import qualified LinAlg.V3 as V
+import Linear.V2
 import PCD
 import PointsGL
 import MyPaths
@@ -22,10 +22,6 @@ data AppState = AppState { _cam          :: Camera
                          , _prevMouse    :: Maybe (V2 Int)
                          , _saveDepthmap :: AppState -> IO () }
 makeLenses ''AppState
-
-_x,_y :: V.R2 t => SimpleLens (t a) a
-_x = V.x
-_y = V.y
 
 keyActions :: AppState -> [(R.Key, Bool)] -> IO AppState
 keyActions s keys 
