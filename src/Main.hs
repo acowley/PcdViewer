@@ -2,6 +2,7 @@
 module Main where
 import Control.Applicative
 import Control.Lens
+import Data.Foldable (toList)
 import Data.IORef (newIORef, writeIORef, readIORef)
 import Data.List (transpose)
 import qualified Data.Set as S
@@ -100,7 +101,7 @@ setup = do clearColor $= Color4 (115/255) (124/255) (161/255) 0
            v <- loadTest
            let m = uniformMat (camMat s)
                proj = buildMat 0.01 100.0
-               cmat = map (map realToFrac) . toLists . toMatrix
+               cmat = toList . fmap (toList . fmap realToFrac) . toMatrix
            drawPoints <- prepPoints v (vertexPos s)
            let draw c = do m $= matMul proj (cmat c)
                            activeTexture $= TextureUnit 0
