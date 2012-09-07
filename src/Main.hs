@@ -88,6 +88,7 @@ matMul a b = map (\row -> map (\col -> sum (zipWith (*) row col)) b') a
 setup :: IO (FilePath -> IO (), Camera -> IO ())
 setup = do clearColor $= Color4 (115/255) (124/255) (161/255) 0
            --clearColor $= Color4 0 0 0 0
+           clearColor $= Color4 1 1 1 0
            depthFunc $= Just Lequal
            -- pointSize $= 3.0
            -- pointSizeRange $= (0,3)
