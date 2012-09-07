@@ -5,7 +5,8 @@ import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as B
 import qualified Data.IntMap as M
 import Data.Maybe (fromMaybe)
-import Data.Monoid ((<>), First(..), mconcat)
+--import Data.Monoid ((<>), First(..), mconcat)
+import Data.Monoid ((<>))
 import Data.Vector.Storable ((!))
 import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
@@ -45,25 +46,27 @@ getFrameSize = do (_, Size w h) <- get viewport
 -- Given a vector of colors, construct a function that returns the
 -- distance (in the range [0,1]) associated with a particular color.
 reverseHeatLookup :: Vector (V3 Word8) -> V3 Word8 -> Float
-reverseHeatLookup heat = fromMaybe 0 . searchCol . hash
+reverseHeatLookup heat = fromMaybe 0 . (`M.lookup` m) . hash
+--reverseHeatLookup heat = fromMaybe 0 . searchCol . hash
   where m = V.ifoldl' aux M.empty heat
         n = fromIntegral $ V.length heat
         aux m' i col = M.insert (hash col) (fromIntegral i / n) m'
         hash (V3 r g b) = fromIntegral r 
                        .|. (fromIntegral g `shiftL` 8)
                        .|. (fromIntegral b `shiftL` 16)
-        searchCol i = getFirst . mconcat $ 
-                      map (First . (`M.lookup` m)) 
-                          [i, i+1, i-1, i+256, i-256, i+65536, i-65536]
+        -- searchCol i = getFirst . mconcat $ 
+        --               map (First . (`M.lookup` m)) 
+        --                   [i, i+1, i-1, i+256, i-256, i+65536, i-65536]
 
 saveFloatFrame :: Vector (V3 Word8) -> FilePath -> IO ()
 saveFloatFrame t f = do (w,h) <- getFrameSize
                         v <- flipVert w `fmap` readPixelVector w h
                         let toFloat i = toDist (v ! i)
-                            -- FIXME: convert normalized [0,1] depths
-                            -- to metric distances (i.e. it's probably
-                            -- not *10).
-                            v' = V.map (*5) . V.map toFloat 
+                            -- Convert normalized [0,1] depths
+                            -- to metric distances by using the same
+                            -- scaling (normalization) factor used by
+                            -- @cloud.frag@. Currently 15.
+                            v' = V.map (*15) . V.map toFloat 
                                $ V.enumFromN 0 (w*h)
                         hdl <- openBinaryFile f WriteMode
                         V.unsafeWith v' $

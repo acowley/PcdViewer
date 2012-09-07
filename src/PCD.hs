@@ -5,10 +5,8 @@ import Control.Applicative
 import Control.DeepSeq
 import Control.Lens
 import Control.Monad (when)
--- import qualified Data.Attoparsec.ByteString as AB
 import Data.Attoparsec.Text
 import qualified Data.Attoparsec.Text.Lazy as ATL
--- import Data.Attoparsec.Binary
 import qualified Data.Text.Lazy.IO as TL
 import qualified Data.Text.IO as T
 import qualified Data.Vector.Storable as V
@@ -16,8 +14,6 @@ import qualified Data.Vector.Storable.Mutable as VM
 import Foreign.Storable (Storable, sizeOf)
 import System.IO (Handle, openFile, hClose, 
                   IOMode(..), withBinaryFile, hPutBuf, hGetBuf)
--- import Unsafe.Coerce
-
 import CommonTypes
 import Header
 
@@ -97,5 +93,9 @@ loadTest = do h <- openFile testFileB ReadMode
               hClose h
               print pcdh
               case r of 
-                Right v -> return  v
+                Right v -> let zs = V.map (\(V3 _ _ z) -> z) v
+                           in do putStrLn $ "Z ranges from "++
+                                            show (V.minimum zs)++
+                                            " to "++show (V.maximum zs)
+                                 return v
                 Left _ -> return V.empty
