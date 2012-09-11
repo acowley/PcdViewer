@@ -87,17 +87,20 @@ asciiToBinary i o = do h <- openFile i ReadMode
                          V.unsafeWith v (flip (hPutBuf h') sz)
 
 loadTest :: IO (Vector (V3 Float))
-loadTest = do h <- openFile testFileB ReadMode
-              (pcdh,_) <- readHeader h
-              r <- pcdh `deepseq` 
-                   readPointData pcdh h readXYZ_ascii
-              either putStrLn (print . V.length) r
-              hClose h
-              print pcdh
-              case r of 
-                Right v -> let zs = V.map (\(V3 _ _ z) -> z) v
-                           in do putStrLn $ "Z ranges from "++
-                                            show (V.minimum zs)++
-                                            " to "++show (V.maximum zs)
-                                 return v
-                Left _ -> return V.empty
+loadTest = loadPCD testFileB
+
+loadPCD :: FilePath -> IO (Vector (V3 Float))
+loadPCD pcdFile = do h <- openFile pcdFile ReadMode
+                     (pcdh,_) <- readHeader h
+                     r <- pcdh `deepseq` 
+                          readPointData pcdh h readXYZ_ascii
+                     either putStrLn (print . V.length) r
+                     hClose h
+                     print pcdh
+                     case r of 
+                       Right v -> let zs = V.map (\(V3 _ _ z) -> z) v
+                                  in do putStrLn $ "Z ranges from "++
+                                                    show (V.minimum zs)++
+                                                   " to "++show (V.maximum zs)
+                                        return v
+                       Left _ -> return V.empty

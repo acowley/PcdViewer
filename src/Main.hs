@@ -18,6 +18,7 @@ import PointsGL
 import MyPaths
 import HeatPalette
 import FrameGrabber
+import System.Environment (getArgs)
 import System.FilePath ((</>))
 
 data AppState = AppState { _cam          :: Camera 
@@ -86,32 +87,32 @@ matMul a b = map (\row -> map (\col -> sum (zipWith (*) row col)) b') a
   where b' = transpose b
 
 -- Configures OpenGL and returns a drawing function.
-setup :: IO (FilePath -> IO (), Camera -> IO ())
-setup = do clearColor $= Color4 (115/255) (124/255) (161/255) 0
-           --clearColor $= Color4 0 0 0 0
-           clearColor $= Color4 1 1 1 0
-           depthFunc $= Just Lequal
-           -- pointSize $= 3.0
-           -- pointSizeRange $= (0,3)
-           vertexProgramPointSize $= Enabled
-           pointSmooth $= Enabled
-           textureFunction $= Decal
-           lighting $= Disabled
-           s <- initShader
-           activeTexture $= TextureUnit 0
-           uniform (heatTex s) $= Index1 (0::GLuint)
-           (heatVec, t) <- heatTexture 1024
-           v <- fixup <$> loadTest
-           let m = uniformMat (camMat s)
-               proj = buildMat 0.01 100.0
-               cmat = toList . fmap (toList . fmap realToFrac) . toMatrix
-           drawPoints <- prepPoints v (vertexPos s)
-           let draw c = do m $= matMul proj (cmat c)
-                           activeTexture $= TextureUnit 0
-                           uniform (heatTex s) $= Index1 (0::GLuint)
-                           textureBinding Texture1D $= Just t
-                           drawPoints
-           return (saveFloatFrame heatVec, draw)
+setup :: FilePath -> IO (FilePath -> IO (), Camera -> IO ())
+setup pcdFile = do clearColor $= Color4 (115/255) (124/255) (161/255) 0
+                   --clearColor $= Color4 0 0 0 0
+                   clearColor $= Color4 1 1 1 0
+                   depthFunc $= Just Lequal
+                   -- pointSize $= 3.0
+                   -- pointSizeRange $= (0,3)
+                   vertexProgramPointSize $= Enabled
+                   pointSmooth $= Enabled
+                   textureFunction $= Decal
+                   lighting $= Disabled
+                   s <- initShader
+                   activeTexture $= TextureUnit 0
+                   uniform (heatTex s) $= Index1 (0::GLuint)
+                   (heatVec, t) <- heatTexture 1024
+                   v <- fixup <$> loadPCD pcdFile
+                   let m = uniformMat (camMat s)
+                       proj = buildMat 0.01 100.0
+                       cmat = toList . fmap (toList . fmap realToFrac) . toMatrix
+                   drawPoints <- prepPoints v (vertexPos s)
+                   let draw c = do m $= matMul proj (cmat c)
+                                   activeTexture $= TextureUnit 0
+                                   uniform (heatTex s) $= Index1 (0::GLuint)
+                                   textureBinding Texture1D $= Just t
+                                   drawPoints
+                   return (saveFloatFrame heatVec, draw)
   where fixup = V.map (\(V3 x y z) -> V3 x (-z) y)
 
 preDraw :: IO ()
@@ -127,23 +128,37 @@ makeFrameSaver dump = do cnt <- newIORef (1::Int)
                          return f
   where baseName = projRoot </> "depthmaps" </> "depths"
 
+runDisplay :: FilePath -> IO ()
+runDisplay pcdFile = 
+  do loop <- R.setup
+     (dumpDepth, drawCloud) <- setup pcdFile
+     dumper <- makeFrameSaver dumpDepth
+     occasionally <- R.onlyEvery 3
+     rate <- R.rateLimitHz 60
+     (incFrame,getFPS) <- R.fps
+     let renderLoop = loop handler
+                      (\s -> preDraw >> drawCloud (s^.cam))
+         go frame c = 
+           do incFrame
+              (shouldExit,c') <- renderLoop c
+              occasionally $ putStr "FPS: " >> getFPS >>= print
+              if shouldExit
+                then R.shutdown
+                else rate >> go (frame+1) c'
+         startCam = (translation._y .~ 3)
+                  . roll pi . pan pi
+                  $ defaultCamera
+     go (0::Int) $ AppState startCam Nothing dumper
+
 main :: IO ()
-main = do loop <- R.setup
-          (dumpDepth, drawCloud) <- setup
-          dumper <- makeFrameSaver dumpDepth
-          occasionally <- R.onlyEvery 3
-          rate <- R.rateLimitHz 60
-          (incFrame,getFPS) <- R.fps
-          let renderLoop = loop handler
-                                (\s -> preDraw >> drawCloud (s^.cam))
-              go frame c = 
-                do incFrame
-                   (shouldExit,c') <- renderLoop c
-                   occasionally $ putStr "FPS: " >> getFPS >>= print
-                   if shouldExit
-                     then R.shutdown
-                     else rate >> go (frame+1) c'
-              startCam = (translation._y .~ 3)
-                       . roll pi . pan pi
-                       $ defaultCamera
-          go (0::Int) $ AppState startCam Nothing dumper
+main = getArgs >>= aux
+  where aux [pcdFile] = runDisplay pcdFile
+        aux [pcdIn, pcdOut] = do putStrLn "Converting ASCII PCD to binary..."
+                                 asciiToBinary pcdIn pcdOut
+        aux [] = runDisplay testFileB
+        aux _ = do putStrLn "Usage: PcdViewer PCDInputFile [PCDOutputFile]"
+                   putStrLn $ "To view a PCD file, supply the file name "++
+                              "as a parameter."
+                   putStrLn $ "To convert an ASCII PCD file to a binary one, "++
+                              "supply the input file as the first parameter, "++
+                              "and the output file as the second parameter."
