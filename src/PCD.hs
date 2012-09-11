@@ -18,8 +18,10 @@ import CommonTypes
 import Header
 
 testFile,testFileB :: FilePath
-testFile = "/Users/acowley/Documents/Projects/PcdViewer/etc/LAB.pcd"
-testFileB = "/Users/acowley/Documents/Projects/PcdViewer/etc/LAB_bin.pcd"
+-- testFile = "/Users/acowley/Documents/Projects/PcdViewer/etc/LAB.pcd"
+-- testFileB = "/Users/acowley/Documents/Projects/PcdViewer/etc/LAB_bin.pcd"
+testFile = "/Users/acowley/Documents/Projects/PcdViewer/etc/levine_4th_floor-1.pcd"
+testFileB = "/Users/acowley/Documents/Projects/PcdViewer/etc/levine_4th_floor-1_bin.pcd"
 
 readAsciiPoints :: Storable a => Header -> Handle -> ATL.Parser a -> 
                    IO (Vector a)

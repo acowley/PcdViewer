@@ -6,6 +6,7 @@ import Data.Foldable (toList)
 import Data.IORef (newIORef, writeIORef, readIORef)
 import Data.List (transpose)
 import qualified Data.Set as S
+import qualified Data.Vector.Storable as V
 import qualified Renderer as R
 import Graphics.Rendering.OpenGL
 import Graphics.GLUtil
@@ -100,7 +101,7 @@ setup = do clearColor $= Color4 (115/255) (124/255) (161/255) 0
            activeTexture $= TextureUnit 0
            uniform (heatTex s) $= Index1 (0::GLuint)
            (heatVec, t) <- heatTexture 1024
-           v <- loadTest
+           v <- fixup <$> loadTest
            let m = uniformMat (camMat s)
                proj = buildMat 0.01 100.0
                cmat = toList . fmap (toList . fmap realToFrac) . toMatrix
@@ -111,6 +112,7 @@ setup = do clearColor $= Color4 (115/255) (124/255) (161/255) 0
                            textureBinding Texture1D $= Just t
                            drawPoints
            return (saveFloatFrame heatVec, draw)
+  where fixup = V.map (\(V3 x y z) -> V3 x (-z) y)
 
 preDraw :: IO ()
 preDraw = clear [ColorBuffer, DepthBuffer]
