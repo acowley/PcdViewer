@@ -157,7 +157,6 @@ main = getArgs >>= aux
   where aux [pcdFile] = runDisplay pcdFile
         aux [pcdIn, pcdOut] = do putStrLn "Converting ASCII PCD to binary..."
                                  asciiToBinary pcdIn pcdOut
-        aux [] = runDisplay testFileB
         aux _ = do putStrLn "Usage: PcdViewer PCDInputFile [PCDOutputFile]"
                    putStrLn $ "To view a PCD file, supply the file name "++
                               "as a parameter."

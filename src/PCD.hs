@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 -- |Parser for PCD (point cloud data) files. Also provides a facility
 -- for converting from ASCII to binary formatted point data.
 module PCD where
@@ -17,11 +18,11 @@ import System.IO (Handle, openFile, hClose,
 import CommonTypes
 import Header
 
-testFile,testFileB :: FilePath
+-- testFile,testFileB :: FilePath
 -- testFile = "/Users/acowley/Documents/Projects/PcdViewer/etc/LAB.pcd"
 -- testFileB = "/Users/acowley/Documents/Projects/PcdViewer/etc/LAB_bin.pcd"
-testFile = "/Users/acowley/Documents/Projects/PcdViewer/etc/levine_4th_floor-1.pcd"
-testFileB = "/Users/acowley/Documents/Projects/PcdViewer/etc/levine_4th_floor-1_bin.pcd"
+-- testFile = "/Users/acowley/Documents/Projects/PcdViewer/etc/levine_4th_floor-1.pcd"
+-- testFileB = "/Users/acowley/Documents/Projects/PcdViewer/etc/levine_4th_floor-1_bin.pcd"
 
 readAsciiPoints :: Storable a => Header -> Handle -> ATL.Parser a -> 
                    IO (Vector a)
@@ -43,11 +44,11 @@ readAsciiPoints pcd h p = aux <$> TL.hGetContents h
 readBinPoints pcd f offset = unsafeMMapVector f $
                              Just (offset, fromIntegral $ pcd^.points)
 -}
-readBinPoints :: Storable a => Header -> Handle -> IO (Vector a)
+readBinPoints :: forall a. Storable a => Header -> Handle -> IO (Vector a)
 readBinPoints pcd h = do vm <- VM.new (fromIntegral $ pcd^.points)
                          _ <- VM.unsafeWith vm (flip (hGetBuf h) numBytes)
                          V.freeze vm
-  where numBytes = fromIntegral (pcd^.points) * sizeOf (undefined::V3 Float)
+  where numBytes = fromIntegral (pcd^.points) * sizeOf (undefined::a)
 
 -- Read point data given an ascii and a binary parser for the point
 -- data type.
@@ -85,9 +86,6 @@ asciiToBinary i o = do h <- openFile i ReadMode
                        T.writeFile o (writeHeader pcdh')
                        withBinaryFile o AppendMode $ \h' ->
                          V.unsafeWith v (flip (hPutBuf h') sz)
-
-loadTest :: IO (Vector (V3 Float))
-loadTest = loadPCD testFileB
 
 loadPCD :: FilePath -> IO (Vector (V3 Float))
 loadPCD pcdFile = do h <- openFile pcdFile ReadMode
