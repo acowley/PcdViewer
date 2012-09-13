@@ -10,7 +10,8 @@ import Linear.Metric
 
 data Camera = Camera { _rotation    :: Quaternion Float
                      , _translation :: V3 Float
-                     , _velocity    :: V3 Float }
+                     , _velocity    :: V3 Float 
+                     , _cameraUp    :: V3 Float}
             deriving Show
 makeLenses ''Camera
 
@@ -23,7 +24,7 @@ writePose cam = show (_rotation cam) ++ "\n" ++ show (_translation cam) ++ "\n"
 -- 'writePose'.
 readPose :: String -> Maybe Camera
 readPose = aux . lines
-  where aux [r,t] = Just $ Camera (read r) (read t) 0
+  where aux [r,t] = Just $ Camera (read r) (read t) 0 (V3 0 1 0)
         aux _ = Nothing
 
 -- |Axes identified in the camera's local coordinate frame expressed
@@ -31,26 +32,28 @@ readPose = aux . lines
 forward,right,up :: Camera -> V3 Float
 forward = flip rotate (V3 0 0 (-1)) . conjugate . view rotation
 right = flip rotate (V3 1 0 0) . conjugate . view rotation
-up = flip rotate (V3 0 1 0) . view rotation
+--up = flip rotate (V3 0 1 0) . view rotation
+up c = rotate (_rotation c) (_cameraUp c)
 
 defaultCamera :: Camera
-defaultCamera = Camera 1 0 0
+defaultCamera = Camera 1 0 0 (V3 0 1 0)
 
 toMatrix :: Camera -> M44 Float
-toMatrix (Camera r t _) = mkTransformation r (rotate r (negate t))
+toMatrix (Camera r t _ _) = mkTransformation r (rotate r (negate t))
 
 pan :: Float -> Camera -> Camera
-pan theta c@(Camera r t v) = Camera r' t v
+pan theta c@(Camera r _ _ _) = rotation .~ r' $ c
+--pan theta c@(Camera r t v _) = Camera r' t v
 --  where r' = normalize $ axisAngle (V3 0 (-1) 0) theta * r
   where r' = normalize $ axisAngle (up c) theta * r
   
 tilt :: Float -> Camera -> Camera
-tilt theta (Camera r t v) = Camera r' t v
+tilt theta c@(Camera r _ _ _) = rotation .~ r' $ c
   where r' = normalize $ axisAngle (V3 1 0 0) theta * r
   -- where r' = normalize $ axisAngle (right c) theta * r
 
 roll :: Float -> Camera -> Camera
-roll theta c@(Camera r t v) = Camera r' t v
+roll theta c@(Camera r _ _ _) = rotation .~ r' $ c
   where r' = normalize $ axisAngle (forward c) theta * r
 
 -- |Add a vector to a 'Camera''s current velocity.
@@ -69,9 +72,10 @@ slow rate = velocity %~ (rate *^)
 
 -- Zero out velocity in a particular direction.
 stopAxis :: V3 Float -> Camera -> Camera
-stopAxis axis (Camera r t v) = Camera r t $ v ^-^ dot (rotate r axis) v *^ axis
+stopAxis axis (Camera r t v u) = flip (Camera r t) u $ 
+                                 v ^-^ dot (rotate r axis) v *^ axis
 
 -- Update a camera's position based on its velocity and a time step
 -- (in seconds).
 update :: Double -> Camera -> Camera
-update dt (Camera r t v) = Camera r (t + v ^* realToFrac dt) v
+update dt (Camera r t v u) = Camera r (t + v ^* realToFrac dt) v u
