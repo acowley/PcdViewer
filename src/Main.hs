@@ -11,7 +11,7 @@ import Graphics.Rendering.OpenGL
 import Graphics.GLUtil
 import Camera
 import CommonTypes
-import Linear.V2
+import Linear.V3
 import PCD
 import PointsGL
 import MyPaths
@@ -143,7 +143,10 @@ runDisplay pcdFile =
               if shouldExit
                 then R.shutdown
                 else rate >> go (frame+1) c'
-         startCam = (cameraUp.~(V3 0 0 1)) . tilt (-pi) $ defaultCamera
+         startCam = (translation._z .~ 2) 
+                  . tilt ((-pi)*0.5) 
+                  . (cameraUp.~(V3 0 0 1)) 
+                  $ defaultCamera
          -- startCam = (translation._y .~ 3)
          --          . roll pi . pan pi
          --          $  defaultCamera
