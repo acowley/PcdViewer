@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 module MyPaths (projRoot, getDataFileName) where
-#ifdef CABALFOO
+#ifdef CABAL
 import qualified Paths_PcdViewer as P
 getDataFileName :: FilePath -> IO FilePath
 getDataFileName = P.getDataFileName

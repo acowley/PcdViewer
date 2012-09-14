@@ -15,10 +15,11 @@ cabal-version:       >=1.8
 data-files:          etc/cloud.vert etc/cloud.frag
 
 executable PcdViewer
-  cpp-options:    -DCABAL                
+  cpp-options:    -DCABAL
   main-is:        Main.hs
-  ghc-options:    -O2 -Wall -fllvm
-  other-modules:  Header, CommonTypes, PCD, Renderer, Paths_PcdViewer
+  ghc-options:    -O2 -Wall
+  other-modules:  Camera, CommonTypes, FrameGrabber, Header, HeatPalette, 
+                  MyPaths, PCD, PointsGL, Renderer, Paths_PcdViewer
   hs-source-dirs: src
   build-depends:  base, text, mtl, lens, vector, bytestring, attoparsec, binary,
                   attoparsec-binary, OpenGL, transformers, GLFW-b, GLUtil,
