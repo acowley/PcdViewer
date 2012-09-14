@@ -17,6 +17,7 @@ import PointsGL
 import MyPaths
 import HeatPalette
 import FrameGrabber
+import System.Directory (canonicalizePath)
 import System.Environment (getArgs)
 import System.FilePath ((</>))
 
@@ -154,7 +155,7 @@ runDisplay pcdFile =
 
 main :: IO ()
 main = getArgs >>= aux
-  where aux [pcdFile] = runDisplay pcdFile
+  where aux [pcdFile] = canonicalizePath pcdFile >>= runDisplay
         aux [pcdIn, pcdOut] = do putStrLn "Converting ASCII PCD to binary..."
                                  asciiToBinary pcdIn pcdOut
         aux _ = do putStrLn "Usage: PcdViewer PCDInputFile [PCDOutputFile]"

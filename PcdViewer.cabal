@@ -4,7 +4,6 @@
 name:                PcdViewer
 version:             0.1.0.0
 synopsis:            PCD file point cloud viewer.
--- description:         
 license:             BSD3
 license-file:        LICENSE
 author:              Anthony Cowley
@@ -24,4 +23,4 @@ executable PcdViewer
   build-depends:  base, text, mtl, lens, vector, bytestring, attoparsec, binary,
                   attoparsec-binary, OpenGL, transformers, GLFW-b, GLUtil,
                   filepath, distributive, deepseq, JuicyPixels, containers, 
-                  linear >= 0.1.1
+                  linear >= 0.1.1, directory
