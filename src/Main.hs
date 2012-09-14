@@ -4,13 +4,13 @@ import Control.Applicative
 import Control.Lens
 import Data.Foldable (toList)
 import Data.IORef (newIORef, writeIORef, readIORef)
-import Data.List (transpose)
 import qualified Data.Set as S
 import qualified Renderer as R
 import Graphics.Rendering.OpenGL
 import Graphics.GLUtil
 import Camera
 import CommonTypes
+import Linear.Matrix ((!*!))
 import Linear.V3
 import PCD
 import PointsGL
@@ -76,24 +76,16 @@ initShader = do vs <- loadShader =<< getDataFileName "etc/cloud.vert"
                            <*> get (uniformLocation p "heat")
                            <*> get (attribLocation p "vertexCoord")
 
-buildMat :: GLfloat -> GLfloat -> [[GLfloat]]
-buildMat near far = [ [1, 0, 0, 0]
-                    , [0, 1, 0, 0]
-                    , [0, 0, -2 / (far - near), (near - far) / (far - near)]
-                    , [0, 0, -1, 0] ]
-
-matMul :: [[GLfloat]] -> [[GLfloat]] -> [[GLfloat]]
-matMul a b = map (\row -> map (\col -> sum (zipWith (*) row col)) b') a
-  where b' = transpose b
+buildMat :: Float -> Float -> M44 Float
+buildMat near far = V4 (set _x 1 0)
+                       (set _y 1 0)
+                       (V4 0 0 (-2/(far-near)) ((near-far)/(far-near)))
+                       (set _z (-1) 0)
 
 -- Configures OpenGL and returns a drawing function.
 setup :: FilePath -> IO (FilePath -> IO (), Camera -> IO ())
-setup pcdFile = do clearColor $= Color4 (115/255) (124/255) (161/255) 0
-                   --clearColor $= Color4 0 0 0 0
-                   clearColor $= Color4 1 1 1 0
+setup pcdFile = do clearColor $= Color4 1 1 1 0
                    depthFunc $= Just Lequal
-                   -- pointSize $= 3.0
-                   -- pointSizeRange $= (0,3)
                    vertexProgramPointSize $= Enabled
                    pointSmooth $= Enabled
                    textureFunction $= Decal
@@ -105,9 +97,9 @@ setup pcdFile = do clearColor $= Color4 (115/255) (124/255) (161/255) 0
                    v <- loadPCD pcdFile
                    let m = uniformMat (camMat s)
                        proj = buildMat 0.01 100.0
-                       cmat = toList . fmap (toList . fmap realToFrac) . toMatrix
                    drawPoints <- prepPoints v (vertexPos s)
-                   let draw c = do m $= matMul proj (cmat c)
+                   let draw c = do m $= (toList . fmap (toList . fmap realToFrac) $
+                                         proj !*! toMatrix c)
                                    activeTexture $= TextureUnit 0
                                    uniform (heatTex s) $= Index1 (0::GLuint)
                                    textureBinding Texture1D $= Just t
@@ -148,9 +140,6 @@ runDisplay pcdFile =
                   . tilt ((-pi)*0.5) 
                   . (cameraUp.~(V3 0 0 1)) 
                   $ defaultCamera
-         -- startCam = (translation._y .~ 3)
-         --          . roll pi . pan pi
-         --          $  defaultCamera
      go (0::Int) $ AppState startCam Nothing dumper
 
 main :: IO ()
@@ -159,8 +148,9 @@ main = getArgs >>= aux
         aux [pcdIn, pcdOut] = do putStrLn "Converting ASCII PCD to binary..."
                                  asciiToBinary pcdIn pcdOut
         aux _ = do putStrLn "Usage: PcdViewer PCDInputFile [PCDOutputFile]"
-                   putStrLn $ "To view a PCD file, supply the file name "++
+                   putStrLn $ "- To view a PCD file, supply the file name "++
                               "as a parameter."
-                   putStrLn $ "To convert an ASCII PCD file to a binary one, "++
-                              "supply the input file as the first parameter, "++
-                              "and the output file as the second parameter."
+                   putStrLn $ "- To convert an ASCII PCD file to a binary one, "++
+                              "supply the input file\n  as the first "++
+                              " parameter, and the output file as the second "++
+                              "parameter."
