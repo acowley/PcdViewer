@@ -2,6 +2,7 @@
 module Main where
 import Control.Applicative
 import Control.Lens
+import Control.Monad (when)
 import Data.Foldable (toList)
 import Data.IORef (newIORef, writeIORef, readIORef)
 import qualified Data.Set as S
@@ -17,9 +18,9 @@ import PointsGL
 import MyPaths
 import HeatPalette
 import FrameGrabber
-import System.Directory (canonicalizePath)
+import System.Directory (canonicalizePath, createDirectory, doesDirectoryExist)
 import System.Environment (getArgs)
-import System.FilePath ((</>))
+import System.FilePath ((</>), takeDirectory)
 
 data AppState = AppState { _cam          :: Camera 
                          , _prevMouse    :: Maybe (V2 Int)
@@ -109,21 +110,26 @@ setup pcdFile = do clearColor $= Color4 1 1 1 0
 preDraw :: IO ()
 preDraw = clear [ColorBuffer, DepthBuffer]
 
-makeFrameSaver :: (FilePath -> IO ()) -> IO (AppState -> IO ())
-makeFrameSaver dump = do cnt <- newIORef (1::Int)
-                         let f s = do n <- readIORef cnt
-                                      writeIORef cnt (n+1)
-                                      dump $ baseName++show n++".bin"
-                                      writeFile (baseName++show n++"pose.txt")
-                                                (writePose (_cam s))
-                         return f
-  where baseName = projRoot </> "depthmaps" </> "depths"
+makeFrameSaver :: FilePath -> (FilePath -> IO ()) -> IO (AppState -> IO ())
+makeFrameSaver pcdRoot dump = 
+  do cnt <- newIORef (1::Int)
+     let dir = pcdRoot </> "depthmaps"
+         baseName = dir </> "depths"
+     dirExists <- doesDirectoryExist dir 
+     when (not dirExists)
+          (createDirectory dir)
+     let f s = do n <- readIORef cnt
+                  writeIORef cnt (n+1)
+                  dump $ baseName++show n++".bin"
+                  writeFile (baseName++show n++"pose.txt")
+                            (writePose (_cam s))
+     return f
 
 runDisplay :: FilePath -> IO ()
 runDisplay pcdFile = 
   do loop <- R.setup
      (dumpDepth, drawCloud) <- setup pcdFile
-     dumper <- makeFrameSaver dumpDepth
+     dumper <- makeFrameSaver (takeDirectory pcdFile) dumpDepth
      occasionally <- R.onlyEvery 3
      rate <- R.rateLimitHz 60
      (incFrame,getFPS) <- R.fps
