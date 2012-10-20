@@ -43,6 +43,8 @@ cameraControl dt (R.UIEvents{..}) st = (stop, ((cam.~c').(prevMouse.~prev')) $ s
            . auxKey (go ((-inc)*^forward c)) R.KeyDown
            . auxKey (go ((-inc)*^right c)) R.KeyLeft
            . auxKey (go (inc*^right c)) R.KeyRight
+           . auxKey (roll 0.01) R.KeyPageup
+           . auxKey (roll (-0.01)) R.KeyPagedown
            . maybe id (pan . (^._x)) dMouse
            . maybe id (tilt . negate . (^._y)) dMouse
            . slow 0.9 

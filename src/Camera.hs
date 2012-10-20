@@ -53,8 +53,11 @@ tilt theta c@(Camera r _ _ _) = rotation .~ r' $ c
   -- where r' = normalize $ axisAngle (right c) theta * r
 
 roll :: Float -> Camera -> Camera
-roll theta c@(Camera r _ _ _) = rotation .~ r' $ c
-  where r' = normalize $ axisAngle (forward c) theta * r
+roll theta c@(Camera r _ _ _) = cameraUp .~ up' $ rotation .~ r' $ c
+  where r' = normalize $ axisAngle (V3 0 0 (-1)) theta * r
+        up' = axisAngle (rotate (conjugate r) $ V3 0 0 (-1)) theta `rotate` _cameraUp c
+-- roll theta c@(Camera r _ _ _) = rotation .~ r' $ c
+--   where r' = normalize $ axisAngle (forward c) theta * r
 
 -- |Add a vector to a 'Camera''s current velocity.
 deltaV :: V3 Float -> Camera -> Camera
