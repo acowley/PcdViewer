@@ -5,7 +5,7 @@
 module Header where
 import Control.Applicative
 import Control.Arrow ((***))
-import Control.Lens
+import SmallLens
 import Control.Monad.State
 import Data.Foldable (Foldable, foldMap)
 import Data.List (intersperse)

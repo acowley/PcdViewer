@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Camera where
-import Control.Lens
+import SmallLens
 import Linear.Conjugate
 import Linear.Quaternion
 import Linear.V3

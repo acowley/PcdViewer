@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards, TemplateHaskell #-}
 module Main where
 import Control.Applicative
-import Control.Lens
+import SmallLens
 import Control.Monad (when)
 import Data.Foldable (toList)
 import Data.IORef (newIORef, writeIORef, readIORef)
@@ -18,9 +18,10 @@ import PointsGL
 import MyPaths
 import HeatPalette
 import FrameGrabber
+import RawPoints
 import System.Directory (canonicalizePath, createDirectory, doesDirectoryExist)
 import System.Environment (getArgs)
-import System.FilePath ((</>), takeDirectory)
+import System.FilePath ((</>), takeDirectory, takeExtension)
 
 data AppState = AppState { _cam          :: Camera 
                          , _prevMouse    :: Maybe (V2 Int)
@@ -95,7 +96,9 @@ setup pcdFile = do clearColor $= Color4 1 1 1 0
                    activeTexture $= TextureUnit 0
                    uniform (heatTex s) $= Index1 (0::GLuint)
                    (heatVec, t) <- heatTexture 1024
-                   v <- loadPCD pcdFile
+                   v <- if takeExtension pcdFile == ".pcd" 
+                        then loadPCD pcdFile
+                        else load3DVerts pcdFile
                    let m = uniformMat (camMat s)
                        proj = buildMat 0.01 100.0
                    drawPoints <- prepPoints v (vertexPos s)
