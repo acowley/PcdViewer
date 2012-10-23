@@ -43,6 +43,8 @@ cameraControl dt (R.UIEvents{..}) st = (stop, ((cam.~c').(prevMouse.~prev')) $ s
            . auxKey (go ((-inc)*^forward c)) R.KeyDown
            . auxKey (go ((-inc)*^right c)) R.KeyLeft
            . auxKey (go (inc*^right c)) R.KeyRight
+           -- . auxKeyOnce (roll (pi*0.5)) R.KeyPageup
+           -- . auxKeyOnce (roll (-pi * 0.5)) R.KeyPagedown
            . auxKey (roll 0.01) R.KeyPageup
            . auxKey (roll (-0.01)) R.KeyPagedown
            . maybe id (pan . (^._x)) dMouse
@@ -53,6 +55,7 @@ cameraControl dt (R.UIEvents{..}) st = (stop, ((cam.~c').(prevMouse.~prev')) $ s
         inc = 1.0 -- 0.1
         go = (clampSpeed s .) . deltaV
         auxKey f k = if S.member k (snd keys) then f else id
+        auxKeyOnce f k = if (k, True) `elem` fst keys then f else id
         dMouse = (\old -> (fromIntegral <$> mousePos ^-^ old) ^* 0.01) <$> prev
         prev' = maybe (const mousePos <$> prev) 
                       (bool (Just mousePos) Nothing)
@@ -147,10 +150,11 @@ runDisplay pcdFile =
               if shouldExit
                 then R.shutdown
                 else rate >> go (frame+1) c'
-         startCam = (translation._z .~ 2) 
-                  . tilt ((-pi)*0.5) 
-                  . (cameraUp.~(V3 0 0 1)) 
-                  $ defaultCamera
+         startCam = defaultCamera
+         -- startCam = (translation._z .~ 2) 
+         --          . tilt ((-pi)*0.5) 
+         --          . (cameraUp.~(V3 0 0 1)) 
+         --          $ defaultCamera
      go (0::Int) $ AppState startCam Nothing dumper
 
 main :: IO ()

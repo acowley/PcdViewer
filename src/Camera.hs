@@ -41,23 +41,20 @@ defaultCamera = Camera 1 0 0 (V3 0 1 0)
 toMatrix :: Camera -> M44 Float
 toMatrix (Camera r t _ _) = mkTransformation r (rotate r (negate t))
 
+-- The pan, tilt, roll controls are designed for FPS-style camera
+-- control. The key idea is that panning is about a canonical up axis,
+-- not the camera's up axis.
+
 pan :: Float -> Camera -> Camera
-pan theta c@(Camera r _ _ _) = rotation .~ r' $ c
---pan theta c@(Camera r t v _) = Camera r' t v
---  where r' = normalize $ axisAngle (V3 0 (-1) 0) theta * r
-  where r' = normalize $ axisAngle (up c) theta * r
-  
+pan theta c@(Camera r _ _ _) = rotation *~ axisAngle (V3 0 1 0) theta $ c
+
 tilt :: Float -> Camera -> Camera
 tilt theta c@(Camera r _ _ _) = rotation .~ r' $ c
-  where r' = normalize $ axisAngle (V3 1 0 0) theta * r
-  -- where r' = normalize $ axisAngle (right c) theta * r
+  where r' = axisAngle (V3 1 0 0) theta * r
 
 roll :: Float -> Camera -> Camera
-roll theta c@(Camera r _ _ _) = cameraUp .~ up' $ rotation .~ r' $ c
-  where r' = normalize $ axisAngle (V3 0 0 (-1)) theta * r
-        up' = axisAngle (rotate (conjugate r) $ V3 0 0 (-1)) theta `rotate` _cameraUp c
--- roll theta c@(Camera r _ _ _) = rotation .~ r' $ c
---   where r' = normalize $ axisAngle (forward c) theta * r
+roll theta c@(Camera r _ _ _) = rotation .~ r' $ c
+  where r' = axisAngle (V3 0 0 1) theta * r
 
 -- |Add a vector to a 'Camera''s current velocity.
 deltaV :: V3 Float -> Camera -> Camera
