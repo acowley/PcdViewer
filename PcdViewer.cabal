@@ -18,10 +18,10 @@ executable PcdViewer
   cpp-options:    -DCABAL
   main-is:        Main.hs
   ghc-options:    -O2 -Wall -rtsopts
-  other-modules:  Camera, CommonTypes, FrameGrabber, Header, HeatPalette, 
-                  MyPaths, PCD, PointsGL, Renderer, PointLoader, Paths_PcdViewer
+  other-modules:  Camera, FrameGrabber, HeatPalette, MyPaths, PointsGL, 
+                  Renderer, PointLoader, Paths_PcdViewer
   hs-source-dirs: src
   build-depends:  base, text, mtl, lens, vector, bytestring, attoparsec, binary,
                   OpenGL, transformers, GLFW-b, GLUtil,
                   filepath, distributive, deepseq, JuicyPixels, containers, 
-                  linear >= 0.1.1, directory, ply-loader
+                  linear >= 0.1.1, directory, ply-loader, pcd-loader

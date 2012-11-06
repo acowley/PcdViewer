@@ -13,7 +13,7 @@ import Camera
 import CommonTypes
 import Linear.Matrix ((!*!))
 import Linear.V3
-import PCD
+import qualified PCD.Data as PCD
 import PointsGL
 import MyPaths
 import HeatPalette
@@ -103,7 +103,7 @@ setup scale ptFile = do clearColor $= Color4 1 1 1 0
                         (heatVec, t) <- heatTexture 1024
                         let ext = takeExtension ptFile
                         v <- if ext == ".pcd" 
-                             then loadPCD ptFile
+                             then PCD.loadXyz ptFile
                              else if ext == ".conf"
                                   then loadConf ptFile
                                   else load3DVerts ptFile
@@ -168,14 +168,10 @@ pairs (x:y:xs) = (x,y) : pairs xs
 main :: IO ()
 main = getArgs >>= aux
   where aux [pcdFile] = canonicalizePath pcdFile >>= runDisplay 1
-        aux [pcdIn, pcdOut] = do putStrLn "Converting ASCII PCD to binary..."
-                                 asciiToBinary pcdIn pcdOut
         aux (pcdFile:args@(_:_)) = canonicalizePath pcdFile >>=
                                    runDisplay (maybe 1 read (lookup "-s" (pairs args)))
-        aux _ = do putStrLn "Usage: PcdViewer PCDInputFile [PCDOutputFile]"
-                   putStrLn $ "- To view a PCD file, supply the file name "++
-                              "as a parameter."
-                   putStrLn $ "- To convert an ASCII PCD file to a binary one, "++
-                              "supply the input file\n  as the first "++
-                              " parameter, and the output file as the second "++
-                              "parameter."
+        aux _ = do putStrLn "Usage: PcdViewer PointCloudFile [-s X]"
+                   putStrLn $ "- To view a PCD, PLY, or .conf file, supply "++
+                              "the file name as a parameter. The \"-s\""++
+                              " option may be used to apply a scale factor "++
+                              "to the geometry."
