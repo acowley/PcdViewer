@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                PcdViewer
-version:             0.1.0.1
+version:             0.1.1.0
 synopsis:            PCD file point cloud viewer.
 license:             BSD3
 license-file:        LICENSE
@@ -17,11 +17,11 @@ data-files:          etc/cloud.vert etc/cloud.frag
 executable PcdViewer
   cpp-options:    -DCABAL
   main-is:        Main.hs
-  ghc-options:    -O2 -Wall
+  ghc-options:    -O2 -Wall -rtsopts
   other-modules:  Camera, CommonTypes, FrameGrabber, Header, HeatPalette, 
-                  MyPaths, PCD, PointsGL, Renderer, RawPoints, Paths_PcdViewer
+                  MyPaths, PCD, PointsGL, Renderer, PointLoader, Paths_PcdViewer
   hs-source-dirs: src
   build-depends:  base, text, mtl, lens, vector, bytestring, attoparsec, binary,
                   OpenGL, transformers, GLFW-b, GLUtil,
                   filepath, distributive, deepseq, JuicyPixels, containers, 
-                  linear >= 0.1.1, directory
+                  linear >= 0.1.1, directory, ply-loader
