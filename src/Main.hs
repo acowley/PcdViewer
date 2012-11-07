@@ -105,15 +105,18 @@ setup scale ptFile = do clearColor $= Color4 1 1 1 0
                         uniform (heatTex s) $= Index1 (0::GLuint)
                         (heatVec, t) <- heatTexture 1024
                         let ext = takeExtension ptFile
-                        v <- if ext == ".pcd" 
-                             then PCD.loadXyz ptFile >>= \v' ->
-                                  if V.null v'
+                        v <- case () of
+                               _ | ext == ".pcd" -> 
+                                   PCD.loadXyz ptFile >>= \v' ->
+                                     if V.null v'
                                      then V.map (view _xyz) <$> 
                                           PCD.loadXyzw ptFile
                                      else return v'
-                             else if ext == ".conf"
-                                  then loadConf ptFile
-                                  else load3DVerts ptFile
+                               _ | ext == ".conf" -> loadConf ptFile
+                               _ | ext == ".ply" -> 
+                                   V.map (\(SurfacePoint p _ _) -> p) <$>
+                                   loadPLYfancy ptFile
+                               _ | otherwise -> load3DVerts ptFile
                         let m = uniformMat (camMat s)
                             proj = buildMat scale 0.01 100.0
                         drawPoints <- prepPoints v (vertexPos s)
