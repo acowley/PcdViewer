@@ -6,13 +6,16 @@ import Control.Monad (when)
 import Data.Foldable (toList)
 import Data.IORef (newIORef, writeIORef, readIORef)
 import qualified Data.Set as S
+import qualified Data.Vector.Storable as V
 import qualified Renderer as R
 import Graphics.Rendering.OpenGL
 import Graphics.GLUtil
 import Camera
-import CommonTypes
-import Linear.Matrix ((!*!))
+import Linear.Matrix ((!*!), M44)
+import Linear.V2
 import Linear.V3
+import Linear.V4
+import Linear.Vector
 import qualified PCD.Data as PCD
 import PointsGL
 import MyPaths
@@ -103,7 +106,11 @@ setup scale ptFile = do clearColor $= Color4 1 1 1 0
                         (heatVec, t) <- heatTexture 1024
                         let ext = takeExtension ptFile
                         v <- if ext == ".pcd" 
-                             then PCD.loadXyz ptFile
+                             then PCD.loadXyz ptFile >>= \v' ->
+                                  if V.null v'
+                                     then V.map (view _xyz) <$> 
+                                          PCD.loadXyzw ptFile
+                                     else return v'
                              else if ext == ".conf"
                                   then loadConf ptFile
                                   else load3DVerts ptFile

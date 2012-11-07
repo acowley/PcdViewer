@@ -1,8 +1,9 @@
 module HeatPalette (heatTexture) where
 import qualified Data.Vector.Storable as V
-import CommonTypes
+import Data.Word (Word8)
 import Foreign.Ptr (castPtr)
 import Graphics.Rendering.OpenGL
+import Linear.V3
 
 fmod :: (Ord a, RealFrac a) => a -> a -> a
 fmod n m | n > m = n - fromIntegral (floor (n / m) :: Int) * m

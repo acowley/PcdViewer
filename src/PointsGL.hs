@@ -1,9 +1,10 @@
 module PointsGL where
+import Data.Vector.Storable (Vector)
 import qualified Data.Vector.Storable as V
 import Data.Word (Word32)
 import Graphics.GLUtil
 import Graphics.Rendering.OpenGL
-import CommonTypes
+import Linear.V3
 
 prepPoints :: Vector (V3 Float) -> AttribLocation -> IO (IO ())
 prepPoints v vertexPos = 

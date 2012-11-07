@@ -5,16 +5,15 @@ import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as B
 import qualified Data.IntMap as M
 import Data.Maybe (fromMaybe)
---import Data.Monoid ((<>), First(..), mconcat)
 import Data.Monoid ((<>))
-import Data.Vector.Storable ((!))
+import Data.Vector.Storable ((!), Vector)
 import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
---import Codec.Picture
+import Data.Word (Word8)
+import Linear.V3
 import Graphics.Rendering.OpenGL
 import System.IO (openBinaryFile, hPutBuf, hClose, IOMode(WriteMode))
 import System.FilePath (replaceExtension)
-import CommonTypes
 
 flipCol :: V3 a -> V3 a
 flipCol (V3 x y z) = V3 z y x
