@@ -12,7 +12,8 @@ copyright:           (c) Anthony Cowley 2012
 category:            Robotics
 build-type:          Simple
 cabal-version:       >=1.8
-data-files:          etc/cloud.vert etc/cloud.frag
+data-files:          etc/cloud.vert etc/cloud.frag 
+                     etc/GroundPlane.vert etc/GroundPlane.frag
 
 executable PcdViewer
   cpp-options:    -DCABAL
