@@ -12,9 +12,13 @@ prepPoints v vertexPos =
      let iv = V.enumFromN 0 (V.length v) :: V.Vector Word32
      ib <- fromVector ArrayBuffer iv
      bindBuffer ArrayBuffer $= Just vb
+     bindBuffer ElementArrayBuffer $= Just ib
      vertexAttribArray vertexPos $= Enabled
      vertexAttribPointer vertexPos $=
        (ToFloat, VertexArrayDescriptor 3 Float 0 offset0)
-     return $ do bindBuffer ElementArrayBuffer $= Just ib
+     return $ do bindBuffer ArrayBuffer $= Just vb
+                 --bindBuffer ElementArrayBuffer $= Just ib
+                 vertexAttribPointer vertexPos $=
+                   (ToFloat, VertexArrayDescriptor 3 Float 0 offset0)
                  drawElements Points (fromIntegral $ V.length v)
                               UnsignedInt offset0

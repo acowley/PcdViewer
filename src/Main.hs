@@ -18,6 +18,7 @@ import Linear.V4
 import Linear.Vector
 import qualified PCD.Data as PCD
 import PointsGL
+import VizMarkers
 import MyPaths
 import HeatPalette
 import FrameGrabber
@@ -75,7 +76,8 @@ bool _ f False = f
 
 data ShaderArgs = ShaderArgs { camMat    :: UniformLocation
                              , heatTex   :: UniformLocation
-                             , vertexPos :: AttribLocation }
+                             , vertexPos :: AttribLocation
+                             , cloudProg :: Program }
 
 initShader :: IO ShaderArgs
 initShader = do vs <- loadShader =<< getDataFileName "etc/cloud.vert"
@@ -85,6 +87,7 @@ initShader = do vs <- loadShader =<< getDataFileName "etc/cloud.vert"
                 ShaderArgs <$> get (uniformLocation p "cam")
                            <*> get (uniformLocation p "heat")
                            <*> get (attribLocation p "vertexCoord")
+                           <*> pure p
 
 buildMat :: Float -> Float -> Float -> M44 Float
 buildMat s near far = V4 (set _x s 0)
@@ -98,13 +101,14 @@ setup scale ptFile = do clearColor $= Color4 1 1 1 0
                         depthFunc $= Just Lequal
                         vertexProgramPointSize $= Enabled
                         pointSmooth $= Enabled
-                        textureFunction $= Decal
+                        --textureFunction $= Decal
                         lighting $= Disabled
                         s <- initShader
                         activeTexture $= TextureUnit 0
-                        uniform (heatTex s) $= Index1 (0::GLuint)
+                        uniform (heatTex s) $= Index1 (0::GLint)
                         (heatVec, t) <- heatTexture 1024
                         let ext = takeExtension ptFile
+                        gp <- groundPlane 5 0.1
                         v <- case () of
                                _ | ext == ".pcd" -> 
                                    PCD.loadXyz ptFile >>= \v' ->
@@ -120,7 +124,10 @@ setup scale ptFile = do clearColor $= Color4 1 1 1 0
                         let m = uniformMat (camMat s)
                             proj = buildMat scale 0.01 100.0
                         drawPoints <- prepPoints v (vertexPos s)
-                        let draw c = do m $= (toList . fmap (toList . fmap realToFrac) $
+                        let draw c = do gp Z (V3 1 0 0) (fmap (fmap realToFrac) $
+                                                         proj !*! toMatrix c)
+                                        currentProgram $= Just (cloudProg s)
+                                        m $= (toList . fmap (toList . fmap realToFrac) $
                                               proj !*! toMatrix c)
                                         activeTexture $= TextureUnit 0
                                         uniform (heatTex s) $= Index1 (0::GLuint)
