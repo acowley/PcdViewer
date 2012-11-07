@@ -32,7 +32,6 @@ readPose = aux . lines
 forward,right,up :: Camera -> V3 Float
 forward = flip rotate (V3 0 0 (-1)) . conjugate . view rotation
 right = flip rotate (V3 1 0 0) . conjugate . view rotation
---up = flip rotate (V3 0 1 0) . view rotation
 up c = rotate (_rotation c) (_cameraUp c)
 
 defaultCamera :: Camera
@@ -60,7 +59,7 @@ tilt theta c@(Camera r _ _ _) = rotation .~ r' $ c
   where r' = axisAngle (V3 1 0 0) theta * r
 
 roll :: Float -> Camera -> Camera
-roll theta c@(Camera r _ _ _) = rotation .~ r' $ c
+roll theta c@(Camera r _ _ _) = (rotation .~ r') $ c
   where r' = axisAngle (V3 0 0 1) theta * r
 
 -- |Add a vector to a 'Camera''s current velocity.

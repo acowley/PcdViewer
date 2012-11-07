@@ -52,8 +52,8 @@ cameraControl scale dt (R.UIEvents{..}) st =
            . auxKey (go (inc*^right c)) R.KeyRight
            -- . auxKeyOnce (roll (pi*0.5)) R.KeyPageup
            -- . auxKeyOnce (roll (-pi * 0.5)) R.KeyPagedown
-           . auxKey (roll 0.01) R.KeyPageup
-           . auxKey (roll (-0.01)) R.KeyPagedown
+           . auxKey (roll 0.04) R.KeyPageup
+           . auxKey (roll (-0.04)) R.KeyPagedown
            . maybe id (pan . negate . (^._x)) dMouse
            . maybe id (tilt . negate . (^._y)) dMouse
            . slow 0.9 
