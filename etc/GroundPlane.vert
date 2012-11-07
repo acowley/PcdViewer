@@ -22,9 +22,6 @@ void main() {
     pt = vec4(vertexCoord, 0.0, 1.0);
   }
   vec4 v = cam * pt;
-  //vec4 v = pt;
-  /* vec4 v = vec4(vertexCoord,0.0,1.0); */
-  /* gl_Position = vec4(0.0, 0.9, 0.0, 1.0); */
     
   gl_Position = vec4(focal * v.x,
                      focal * v.y,
