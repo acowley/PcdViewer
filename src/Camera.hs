@@ -15,12 +15,12 @@ data Camera = Camera { _rotation    :: Quaternion Float
             deriving Show
 makeLenses ''Camera
 
--- Create a human-readable text output of a camera's rotation and
+-- |Create a human-readable text output of a camera's rotation and
 -- translation.
 writePose :: Camera -> String
 writePose cam = show (_rotation cam) ++ "\n" ++ show (_translation cam) ++ "\n"
 
--- Read back a camera pose saved in a format compatible with
+-- |Read back a camera pose saved in a format compatible with
 -- 'writePose'.
 readPose :: String -> Maybe Camera
 readPose = aux . lines
@@ -38,15 +38,22 @@ up c = rotate (_rotation c) (_cameraUp c)
 defaultCamera :: Camera
 defaultCamera = Camera 1 0 0 (V3 0 1 0)
 
+-- |A "first-person shooter"-style camera default for a right-handed
+-- coordinate system with the positive Z axis extending up from the
+-- ground, Y extending forward from the camera, and X off to the
+-- right.
+fpsDefault :: Camera
+fpsDefault = tilt (-pi*0.5) . (cameraUp .~ (V3 0 0 1)) $ defaultCamera
+
 toMatrix :: Camera -> M44 Float
 toMatrix (Camera r t _ _) = mkTransformation r (rotate r (negate t))
 
 -- The pan, tilt, roll controls are designed for FPS-style camera
--- control. The key idea is that panning is about a canonical up axis,
--- not the camera's up axis.
-
+-- control. The key idea is that panning is about a world-frame
+-- up-axis, not the camera's local up axis. We record which world axis
+-- to use as the up vector in the 'Camera' data structure.
 pan :: Float -> Camera -> Camera
-pan theta c@(Camera r _ _ _) = rotation *~ axisAngle (V3 0 1 0) theta $ c
+pan theta c = rotation *~ axisAngle (_cameraUp c) theta $ c
 
 tilt :: Float -> Camera -> Camera
 tilt theta c@(Camera r _ _ _) = rotation .~ r' $ c

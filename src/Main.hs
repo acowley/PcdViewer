@@ -12,11 +12,13 @@ import Graphics.Rendering.OpenGL
 import Graphics.GLUtil
 import Camera
 import Linear.Matrix ((!*!), M44)
+import Linear.Metric
 import Linear.V2
 import Linear.V3
 import Linear.V4
 import Linear.Vector
 import qualified PCD.Data as PCD
+--import PCDCleaner
 import PointsGL
 import VizMarkers
 import MyPaths
@@ -52,7 +54,7 @@ cameraControl scale dt (R.UIEvents{..}) st =
            -- . auxKeyOnce (roll (-pi * 0.5)) R.KeyPagedown
            . auxKey (roll 0.01) R.KeyPageup
            . auxKey (roll (-0.01)) R.KeyPagedown
-           . maybe id (pan . (^._x)) dMouse
+           . maybe id (pan . negate . (^._x)) dMouse
            . maybe id (tilt . negate . (^._y)) dMouse
            . slow 0.9 
            $ update dt c 
@@ -123,7 +125,9 @@ setup scale ptFile = do clearColor $= Color4 1 1 1 0
                                _ | otherwise -> load3DVerts ptFile
                         let m = uniformMat (camMat s)
                             proj = buildMat scale 0.01 100.0
-                        drawPoints <- prepPoints v (vertexPos s)
+                            v' = v --V.filter ((< 0.009) . quadrance . view _xy) v
+                        -- saveCleanPCD ptFile v'
+                        drawPoints <- prepPoints v' (vertexPos s)
                         let draw c = do gp Z (V3 1 0 0) (fmap (fmap realToFrac) $
                                                          proj !*! toMatrix c)
                                         currentProgram $= Just (cloudProg s)
@@ -162,7 +166,7 @@ runDisplay scale pcdFile =
      rate <- R.rateLimitHz 60
      (incFrame,getFPS) <- R.fps
      let renderLoop = loop (handler scale)
-                      (\s -> preDraw >> drawCloud (s^.cam))
+                           (\s -> preDraw >> drawCloud (s^.cam))
          go frame c = 
            do incFrame
               (shouldExit,c') <- renderLoop c
@@ -170,11 +174,9 @@ runDisplay scale pcdFile =
               if shouldExit
                 then R.shutdown
                 else rate >> go (frame+1) c'
-         startCam = defaultCamera
-         -- startCam = (translation._z .~ 2) 
-         --          . tilt ((-pi)*0.5) 
-         --          . (cameraUp.~(V3 0 0 1)) 
-         --          $ defaultCamera
+         startCam = (translation._y .~ -1)
+                  . (translation._z .~ 0.2) 
+                  $ fpsDefault
      go (0::Int) $ AppState startCam Nothing dumper
 
 pairs :: [a] -> [(a,a)]

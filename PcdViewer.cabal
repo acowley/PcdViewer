@@ -19,7 +19,7 @@ executable PcdViewer
   main-is:        Main.hs
   ghc-options:    -O2 -Wall -rtsopts
   other-modules:  Camera, FrameGrabber, HeatPalette, MyPaths, PointsGL, 
-                  Renderer, PointLoader, Paths_PcdViewer
+                  Renderer, PointLoader, Paths_PcdViewer, PCDCleaner, VizMarkers
   hs-source-dirs: src
   build-depends:  base, text, mtl, lens, vector, bytestring, attoparsec, binary,
                   OpenGL, transformers, GLFW-b, GLUtil,

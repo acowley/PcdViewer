@@ -64,8 +64,8 @@ setup = do _ <- initialize
            setMouseButtonCallback $ bufferMB mb
            setWindowBufferSwapInterval 0
            loop (kb,mb) <$> (getTime >>= newMVar)
-  where opts = defaultDisplayOptions { displayOptions_width = 640
-                                     , displayOptions_height = 480
+  where opts = defaultDisplayOptions { displayOptions_width = 512 -- 640
+                                     , displayOptions_height = 512 -- 480
                                      , displayOptions_numDepthBits = 24
                                      , displayOptions_refreshRate = Just 100 }
 

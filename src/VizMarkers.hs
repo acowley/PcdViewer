@@ -56,9 +56,6 @@ checkErrors = get errors >>= aux
 groundPlane :: Int -> GLfloat -> 
                IO (EuclideanGround -> V3 GLfloat -> M44 GLfloat -> IO ())
 groundPlane n sz = do vb <- makeBuffer ArrayBuffer (horizontals ++ verts)
-                      putStrLn $ (show (length (horizontals++verts))) ++ " vs "++
-                                 (show (8*(n+1)))++" vs "++show (length indices)
-                      print (horizontals++verts)
                       bindBuffer ArrayBuffer $= Just vb
                       shader <- initGroundShader
                       eb <- makeBuffer ElementArrayBuffer indices
