@@ -18,7 +18,7 @@ import Linear.V3
 import Linear.V4
 import Linear.Vector
 import qualified PCD.Data as PCD
---import PCDCleaner
+import PCDCleaner
 import PointsGL
 import VizMarkers
 import MyPaths
@@ -125,7 +125,12 @@ setup scale ptFile = do clearColor $= Color4 1 1 1 0
                                _ | otherwise -> load3DVerts ptFile
                         let m = uniformMat (camMat s)
                             proj = buildMat scale 0.01 100.0
-                            v' = v --V.filter ((< 0.009) . quadrance . view _xy) v
+                            --v' = V.filter ((< 0.009) . quadrance . view _xy) v
+                            -- goodPt (V3 x y z) = let q = quadrance (V2 x y)
+                            --                     in q < 0.02 || 
+                            --                        (z > 0.1 && q < 0.07)
+                            -- v' = V.filter goodPt v
+                            v' = v
                         -- saveCleanPCD ptFile v'
                         drawPoints <- prepPoints v' (vertexPos s)
                         let draw c = do gp Z (V3 1 0 0) (fmap (fmap realToFrac) $
